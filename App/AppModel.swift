@@ -202,28 +202,15 @@ final class AppModel {
 
     /// The starts of the days around `month` that have something on.
     func busyDays(around month: Date) -> Set<Date> {
-        let cal = Calendar.current
-        var days = Set<Date>()
-        for m in events(around: month) where shows(m) {
-            var day = cal.startOfDay(for: m.start)
-            // A multi-day event marks each day; one ending at midnight doesn't mark the next.
-            while day < m.end && days.count < 400 {
-                days.insert(day)
-                day = cal.date(byAdding: .day, value: 1, to: day)!
-            }
-        }
-        return days
+        CalendarDays.busy(events(around: month).filter(shows))
     }
 
     /// The day's events, all-day ones first, and on today its reminders.
     func agenda(for day: Date) -> [Meeting] {
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: day)
-        let end = cal.date(byAdding: .day, value: 1, to: start)!
-        let month = cal.dateInterval(of: .month, for: start)!.start
-        var items = events(around: month).filter { shows($0) && $0.start < end && $0.end > start }
-        if cal.isDateInToday(start) { items += upcoming.filter { $0.kind == .reminder } }
-        return items.sorted { ($0.isAllDay ? 0 : 1, $0.start, $0.title) < ($1.isAllDay ? 0 : 1, $1.start, $1.title) }
+        let month = Calendar.current.dateInterval(of: .month, for: day)!.start
+        var items = events(around: month).filter(shows)
+        if Calendar.current.isDateInToday(day) { items += upcoming.filter { $0.kind == .reminder } }
+        return CalendarDays.agenda(items, on: day)
     }
 
     /// Whether `meeting` will get an alert at all, by the filter and its override.
