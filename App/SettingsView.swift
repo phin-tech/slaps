@@ -43,6 +43,26 @@ private struct GeneralSettings: View {
                 Button("Show a Test Alert") { model.testAlert() }
             }
             Section {
+                Toggle("Hold alerts while I share my screen", isOn: $model.pauseWhileSharing)
+            } footer: {
+                Text("Slaps spots the border Zoom, Teams, Webex and Slack draw around a shared screen, and keeps the "
+                    + "alert back until sharing stops; the menu bar bell rings meanwhile. Sharing from a browser tab "
+                    + "(Google Meet) isn't detected, so pause Slaps for those.")
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                Toggle("Keyboard shortcuts", isOn: $model.hotKeysEnabled)
+                ForEach(HotKeys.Action.allCases) { action in
+                    LabeledContent(action.title) {
+                        Text(action.shortcut).monospaced().foregroundStyle(.secondary)
+                    }
+                    .opacity(model.hotKeysEnabled ? 1 : 0.5)
+                }
+            } footer: {
+                Text("They work from any app.").foregroundStyle(.secondary)
+            }
+            Section {
+                Toggle("Show the date in the menu bar", isOn: $model.showDateInMenuBar)
                 Toggle("Open Slaps at login", isOn: $openAtLogin)
                     .onChange(of: openAtLogin) { _, on in
                         do {
@@ -126,6 +146,19 @@ private struct FilterSettings: View {
                 Toggle("Events I declined", isOn: $model.filter.includeDeclined)
                 Toggle("Only events with other people", isOn: $model.filter.requireOtherAttendees)
                 Toggle("Only events with a video call link", isOn: $model.filter.requireLink)
+            }
+            Section {
+                Toggle("Reminders with a due time", isOn: $model.filter.includeReminders)
+                Toggle("Only high-priority reminders", isOn: $model.filter.onlyHighPriorityReminders)
+                    .disabled(!model.filter.includeReminders)
+                if model.filter.includeReminders && model.remindersAccess == .denied {
+                    Button("Allow Reminders Access in Privacy Settings…") { model.askForReminders() }
+                }
+            } header: {
+                Text("Reminders")
+            } footer: {
+                Text("A reminder's alert goes up at its due time, with a button to mark it done.")
+                    .foregroundStyle(.secondary)
             }
             Section {
                 TextField("Ignore titles containing", text: $words, prompt: Text("Lunch, Focus, OOO"))

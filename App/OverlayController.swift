@@ -34,6 +34,8 @@ final class OverlayController {
             panel.backgroundColor = .clear
             panel.hasShadow = false
             panel.title = "Slaps alert"
+            // Kept out of screen sharing and recordings where macOS honours it, in case one starts mid-alert.
+            panel.sharingType = .none
             panel.contentView = NSHostingView(rootView: AlertView(model: .shared, isMainScreen: screen == main))
             panel.setFrame(screen.frame, display: true)
             panels.append(panel)
@@ -61,6 +63,9 @@ private final class OverlayPanel: NSPanel {
 struct AlertView: View {
     let model: AppModel
     let isMainScreen: Bool
+    /// Keys do nothing for a moment after the alert appears: it takes the keyboard from whatever you were typing in,
+    /// and a Return or Escape meant for that shouldn't join or dismiss a meeting you haven't seen yet.
+    @State private var keysArmed = false
 
     var body: some View {
         let theme = model.theme
@@ -71,7 +76,7 @@ struct AlertView: View {
             if let first = model.alerting.first {
                 VStack(spacing: 28) {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                        Text(countdown(to: first.start, now: context.date))
+                        Text(countdown(for: first, now: context.date))
                             .font(.system(size: 34, weight: .semibold, design: .rounded).monospacedDigit())
                             .foregroundStyle(theme.accent)
                     }
@@ -104,16 +109,28 @@ struct AlertView: View {
                 .frame(maxWidth: 1100)
             }
         }
+        .task {
+            try? await Task.sleep(for: .seconds(1.5))
+            keysArmed = true
+        }
     }
+
+    private func key(_ shortcut: KeyboardShortcut?) -> KeyboardShortcut? { keysArmed ? shortcut : nil }
 
     @ViewBuilder private func buttons(_ first: Meeting, theme: Theme) -> some View {
         HStack(spacing: 16) {
-            if let link = first.link {
+            if first.kind == .reminder {
+                Button { model.complete(first) } label: {
+                    Label("Mark Done", systemImage: "checkmark.circle.fill").frame(minWidth: 220)
+                }
+                .buttonStyle(AlertButtonStyle(fill: theme.accent, text: theme == .paper ? .white : .black))
+                .keyboardShortcut(key(.defaultAction))
+            } else if let link = first.link {
                 Button { model.join(first) } label: {
                     Label("Join \(link.service)", systemImage: "video.fill").frame(minWidth: 220)
                 }
                 .buttonStyle(AlertButtonStyle(fill: theme.accent, text: theme == .paper ? .white : .black))
-                .keyboardShortcut(.defaultAction)
+                .keyboardShortcut(key(.defaultAction))
             }
             Menu("Snooze") {
                 Button("1 minute") { model.snooze(model.alerting, until: Date().addingTimeInterval(60)) }
@@ -130,21 +147,26 @@ struct AlertView: View {
                 Text("Dismiss").frame(minWidth: 120)
             }
             .buttonStyle(AlertButtonStyle(fill: theme.foreground.opacity(0.15), text: theme.foreground))
-            .keyboardShortcut(first.link == nil ? .defaultAction : nil)
+            .keyboardShortcut(key(first.link == nil && first.kind == .event ? .defaultAction : nil))
         }
         .font(.title3.weight(.semibold))
         // Escape always dismisses, even when Dismiss is the default button.
-        .background(Button("") { model.dismiss(model.alerting) }.keyboardShortcut(.cancelAction).hidden())
+        .background(Button("") { model.dismiss(model.alerting) }.keyboardShortcut(key(.cancelAction)).hidden())
     }
 
     private func details(_ m: Meeting) -> String {
+        if m.kind == .reminder {
+            return ["Due \(m.start.formatted(date: .omitted, time: .shortened))", m.calendarTitle]
+                .filter { !$0.isEmpty }.joined(separator: "  ·  ")
+        }
         let time = "\(m.start.formatted(date: .omitted, time: .shortened)) – \(m.end.formatted(date: .omitted, time: .shortened))"
         return [time, m.calendarTitle, m.link == nil ? m.location : nil]
             .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "  ·  ")
     }
 
-    private func countdown(to start: Date, now: Date) -> String {
-        let s = Int(start.timeIntervalSince(now).rounded())
+    private func countdown(for m: Meeting, now: Date) -> String {
+        let s = Int(m.start.timeIntervalSince(now).rounded())
+        if m.kind == .reminder { return s > 0 ? String(format: "Reminder in %d:%02d", s / 60, s % 60) : "Reminder" }
         if s > 0 { return String(format: "Starts in %d:%02d", s / 60, s % 60) }
         if s > -60 { return "Starting now" }
         return "Started \(-s / 60) min ago"

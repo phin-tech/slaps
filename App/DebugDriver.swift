@@ -12,7 +12,9 @@ import AppKit
 ///     {"command": "windows"}                                  visible windows, front first: index, title, frame
 ///     {"command": "snapshot", "path": "/tmp/out.png", "window": 0}
 ///     {"command": "menu", "path": ["File", "New Window"]}     choose a main-menu item (or list a menu's items)
-///     {"command": "alert"}                                    put up a test alert
+///     {"command": "alert", "reminder": false}                 put up a test alert (of a reminder)
+///     {"command": "hotkeys"}                                  how many global shortcuts are registered
+///     {"command": "sharing"}                                  whether screen sharing is detected
 ///     {"command": "dismiss"}                                  dismiss whatever alert is up
 ///     {"command": "quit"}
 ///
@@ -61,8 +63,24 @@ final class DebugDriver {
         case "menu":
             return try menu(request["path"] as? [String] ?? [])
         case "alert":
-            AppModel.shared.testAlert()
+            AppModel.shared.testAlert(reminder: request["reminder"] as? Bool ?? false)
             return "test alert up"
+        case "hotkeys":
+            return "\(AppModel.shared.hotKeysRegistered) of \(HotKeys.Action.allCases.count) shortcuts registered"
+        case "popover":
+            // Clicks Slaps's menu bar item, as you would, to open (or close) the popover.
+            for window in NSApp.windows where String(describing: type(of: window)).contains("StatusBar") {
+                if let button = Self.firstButton(in: window.contentView) {
+                    button.performClick(nil)
+                    return "clicked the menu bar item"
+                }
+            }
+            throw DebugError("no menu bar item")
+        case "state":
+            let m = AppModel.shared
+            return "alerting: \(m.alerting.map(\.title)); upcoming: \(m.upcoming.count); paused: \(m.isPaused)"
+        case "sharing":
+            return ScreenShare.isSharing() ? "sharing detected" : "not sharing"
         case "dismiss":
             AppModel.shared.dismiss(AppModel.shared.alerting)
             return "dismissed"
@@ -76,8 +94,15 @@ final class DebugDriver {
             }
             return "quitting"
         default:
-            throw DebugError("unknown command '\(command)' (ping, windows, snapshot, menu, alert, dismiss, quit)")
+            throw DebugError("unknown command '\(command)' (ping, windows, snapshot, menu, alert, dismiss, popover, hotkeys, sharing, state, quit)")
         }
+    }
+
+    private static func firstButton(in view: NSView?) -> NSButton? {
+        guard let view else { return nil }
+        if let button = view as? NSButton { return button }
+        for sub in view.subviews { if let b = firstButton(in: sub) { return b } }
+        return nil
     }
 
     private struct DebugError: Error {

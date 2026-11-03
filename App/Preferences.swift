@@ -56,6 +56,10 @@ enum PrefKey {
     static let theme = "theme"
     static let filter = "filter"
     static let pausedUntil = "pausedUntil"
+    static let pauseWhileSharing = "pauseWhileSharing"
+    static let hotKeys = "hotKeys"
+    static let overrides = "overrides"
+    static let showDate = "showDateInMenuBar"
 }
 
 extension UserDefaults {
@@ -65,5 +69,13 @@ extension UserDefaults {
             return (try? JSONDecoder().decode(AlertFilter.self, from: data)) ?? AlertFilter()
         }
         set { set(try? JSONEncoder().encode(newValue), forKey: PrefKey.filter) }
+    }
+
+    var overrides: Overrides {
+        get {
+            guard let data = data(forKey: PrefKey.overrides) else { return Overrides() }
+            return (try? JSONDecoder().decode(Overrides.self, from: data)) ?? Overrides()
+        }
+        set { set(try? JSONEncoder().encode(newValue), forKey: PrefKey.overrides) }
     }
 }

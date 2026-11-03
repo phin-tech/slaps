@@ -12,22 +12,32 @@ public struct AlertFilter: Codable, Equatable, Sendable {
     public var requireLink = false
     /// Skip events whose title contains any of these, ignoring case ("Lunch", "OOO").
     public var ignoredTitleWords: [String] = []
+    /// Alert for reminders with a due time, at that time.
+    public var includeReminders = false
+    /// Of those, only the ones marked high priority.
+    public var onlyHighPriorityReminders = false
 
     public init() {}
 
     public func allows(_ meeting: Meeting) -> Bool {
         if meeting.cancelled { return false }
         if excludedCalendarIDs.contains(meeting.calendarID) { return false }
+        if meeting.kind == .reminder {
+            return includeReminders && (meeting.isHighPriority || !onlyHighPriorityReminders) && !ignoredTitle(meeting)
+        }
         if meeting.isAllDay && !includeAllDay { return false }
         if meeting.declined && !includeDeclined { return false }
         if requireOtherAttendees && !meeting.hasOtherAttendees { return false }
         if requireLink && meeting.link == nil { return false }
+        return !ignoredTitle(meeting)
+    }
+
+    private func ignoredTitle(_ meeting: Meeting) -> Bool {
         let title = meeting.title.lowercased()
-        for word in ignoredTitleWords {
+        return ignoredTitleWords.contains { word in
             let w = word.trimmingCharacters(in: .whitespaces).lowercased()
-            if !w.isEmpty && title.contains(w) { return false }
+            return !w.isEmpty && title.contains(w)
         }
-        return true
     }
 
     // Decoding fills keys a newer version added with their defaults, so saved settings survive an update.
@@ -40,6 +50,9 @@ public struct AlertFilter: Codable, Equatable, Sendable {
         requireOtherAttendees = try c.decodeIfPresent(Bool.self, forKey: .requireOtherAttendees) ?? d.requireOtherAttendees
         requireLink = try c.decodeIfPresent(Bool.self, forKey: .requireLink) ?? d.requireLink
         ignoredTitleWords = try c.decodeIfPresent([String].self, forKey: .ignoredTitleWords) ?? d.ignoredTitleWords
+        includeReminders = try c.decodeIfPresent(Bool.self, forKey: .includeReminders) ?? d.includeReminders
+        onlyHighPriorityReminders = try c.decodeIfPresent(Bool.self, forKey: .onlyHighPriorityReminders)
+            ?? d.onlyHighPriorityReminders
     }
 }
 
@@ -81,20 +94,27 @@ public struct AlertSchedule: Equatable, Sendable {
 
     /// When `meeting`'s alert goes up (possibly in the past), or nil if it never does: dismissed, snoozed past its end,
     /// or a lead time so negative it would fire after the grace period.
-    public func fireDate(for meeting: Meeting, state: AlertState) -> Date? {
+    public func fireDate(for meeting: Meeting, state: AlertState, overrides: Overrides = Overrides()) -> Date? {
         if state.dismissed.contains(meeting.id) { return nil }
         if let until = state.snoozed[meeting.id] {
             return until < meeting.end ? until : nil
         }
+        let lead: TimeInterval
+        switch overrides.override(for: meeting) {
+        case .skip: return nil
+        case .leadTime(let t): lead = t
+        case nil: lead = meeting.kind == .reminder ? 0 : leadTime   // a reminder is due at its time
+        }
         let latest = min(meeting.start.addingTimeInterval(grace), meeting.end)
-        let fire = meeting.start.addingTimeInterval(-leadTime)
+        let fire = meeting.start.addingTimeInterval(-lead)
         return fire < latest ? fire : nil
     }
 
     /// The meetings whose alert should be showing at `now`, earliest start first.
-    public func due(_ meetings: [Meeting], at now: Date, state: AlertState) -> [Meeting] {
+    public func due(_ meetings: [Meeting], at now: Date, state: AlertState,
+                    overrides: Overrides = Overrides()) -> [Meeting] {
         meetings.filter { m in
-            guard let fire = fireDate(for: m, state: state), fire <= now else { return false }
+            guard let fire = fireDate(for: m, state: state, overrides: overrides), fire <= now else { return false }
             let latest = state.snoozed[m.id] != nil ? m.end : min(m.start.addingTimeInterval(grace), m.end)
             return now < latest
         }
@@ -102,7 +122,8 @@ public struct AlertSchedule: Equatable, Sendable {
     }
 
     /// The next time an alert goes up after `now`, for scheduling a wake-up.
-    public func nextFire(_ meetings: [Meeting], after now: Date, state: AlertState) -> Date? {
-        meetings.compactMap { fireDate(for: $0, state: state) }.filter { $0 > now }.min()
+    public func nextFire(_ meetings: [Meeting], after now: Date, state: AlertState,
+                         overrides: Overrides = Overrides()) -> Date? {
+        meetings.compactMap { fireDate(for: $0, state: state, overrides: overrides) }.filter { $0 > now }.min()
     }
 }

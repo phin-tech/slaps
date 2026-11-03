@@ -17,7 +17,11 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
   windows                    list visible windows, front first: index, title, origin, size
   snapshot <out.png> [N]     render window N (default 0, the front one) to a PNG
   menu [Menu Sub ... Item]   choose a main-menu item, or list the menu bar or a menu
-  alert                      put up a test alert (then snapshot it: windows lists it first)
+  alert [reminder]           put up a test alert, of a meeting or a reminder (windows lists it first)
+  popover                    click the menu bar item, opening or closing the popover
+  state                      what the app thinks is alerting
+  hotkeys                    how many global shortcuts are registered
+  sharing                    whether screen sharing is detected
   dismiss                    dismiss the alert that is up
   quit                       quit this copy of the app
   help                       this
@@ -29,7 +33,9 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
 def request(argv):
     """The JSON request for a command line."""
     command, args = argv[0], argv[1:]
-    if command in ("ping", "windows", "alert", "dismiss", "quit"):
+    if command == "alert":
+        return {"command": "alert", "reminder": args[:1] == ["reminder"]}
+    if command in ("ping", "windows", "dismiss", "popover", "hotkeys", "sharing", "state", "quit"):
         return {"command": command}
     if command == "snapshot":
         if not args:

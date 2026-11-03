@@ -61,6 +61,7 @@ targets:
         LSUIElement: true
         NSCalendarsFullAccessUsageDescription: Slaps reads your calendars to put an alert in front of you before each meeting.
         NSCalendarsUsageDescription: Slaps reads your calendars to put an alert in front of you before each meeting.
+        NSRemindersFullAccessUsageDescription: Slaps alerts you when a reminder with a time is due, and marks it done when you ask.
         # Sparkle: the appcast is an asset of the newest GitHub release (`just appcast` uploads it), and
         # updates must be signed by the private key in op://Development/lc6wrq7lltjd47uue26cdxttzu (sparkle_private_key).
         SUFeedURL: https://github.com/phin-tech/slaps/releases/latest/download/appcast.xml

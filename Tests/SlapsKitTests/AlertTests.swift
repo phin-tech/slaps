@@ -138,3 +138,73 @@ func findsLinks(text: String, service: String, url: String) {
     #expect(state.dismissed.isEmpty)
     #expect(state.snoozed.keys.sorted() == ["b"])
 }
+
+// MARK: Reminders
+
+@Test func remindersOnlyWhenAskedFor() {
+    var f = AlertFilter()
+    let r = meeting { $0.kind = .reminder }
+    #expect(!f.allows(r))
+    f.includeReminders = true
+    f.requireLink = true                 // event-only rules don't apply to reminders
+    f.requireOtherAttendees = true
+    #expect(f.allows(r))
+    f.onlyHighPriorityReminders = true
+    #expect(!f.allows(r))
+    #expect(f.allows(meeting { $0.kind = .reminder; $0.isHighPriority = true }))
+    f.excludedCalendarIDs = ["work"]     // a reminder list switched off
+    #expect(!f.allows(meeting { $0.kind = .reminder; $0.isHighPriority = true }))
+}
+
+@Test func remindersFireAtTheirDueTime() {
+    let s = AlertSchedule(leadTime: 600)
+    let r = meeting(startsIn: 10) { $0.kind = .reminder }
+    #expect(s.fireDate(for: r, state: AlertState()) == r.start)
+}
+
+// MARK: Overrides
+
+@Test func overrideSkipsOrChangesLeadTime() {
+    let s = AlertSchedule(leadTime: 60)
+    let m = meeting(startsIn: 10) { $0.seriesID = "weekly" }
+    var o = Overrides()
+    o.set(.skip, for: m, scope: .occurrence)
+    #expect(s.fireDate(for: m, state: AlertState(), overrides: o) == nil)
+    o.set(.leadTime(300), for: m, scope: .occurrence)
+    #expect(s.fireDate(for: m, state: AlertState(), overrides: o) == m.start.addingTimeInterval(-300))
+    #expect(o.scope(for: m) == .occurrence)
+}
+
+@Test func seriesOverrideCoversOtherOccurrences() {
+    let a = meeting("a", startsIn: 10) { $0.seriesID = "weekly" }
+    let b = meeting("b", startsIn: 10_080) { $0.seriesID = "weekly" }
+    var o = Overrides()
+    o.set(.skip, for: a, scope: .occurrence)
+    o.set(.leadTime(600), for: a, scope: .series)   // replaces a's own
+    #expect(o.override(for: a) == .leadTime(600))
+    #expect(o.override(for: b) == .leadTime(600))
+    o.set(.skip, for: b, scope: .occurrence)          // one occurrence differs from the series
+    #expect(o.override(for: b) == .skip)
+    o.set(nil, for: a, scope: .series)
+    #expect(o.override(for: a) == nil)
+    #expect(o.override(for: b) == .skip)
+}
+
+@Test func overrideWithoutSeriesFallsBackToOccurrence() {
+    let m = meeting()
+    var o = Overrides()
+    o.set(.skip, for: m, scope: .series)
+    #expect(o.scope(for: m) == .occurrence)
+}
+
+@Test func overridesOfPastOccurrencesAreForgotten() throws {
+    let m = meeting(startsIn: 0, lasts: 30)
+    var o = Overrides()
+    o.set(.skip, for: m, scope: .occurrence)
+    o.prune(before: t0.addingTimeInterval(29 * 60))
+    #expect(o.override(for: m) == .skip)
+    o.prune(before: t0.addingTimeInterval(31 * 60))
+    #expect(o.override(for: m) == nil)
+    let round = try JSONDecoder().decode(Overrides.self, from: JSONEncoder().encode(o))
+    #expect(round == o)
+}

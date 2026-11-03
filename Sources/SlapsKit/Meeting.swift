@@ -1,9 +1,18 @@
 import Foundation
 
-/// One occurrence of a calendar event, copied out of EventKit so the rules about it can be tested without a calendar.
+/// One occurrence of a calendar event, or a reminder with a due time, copied out of EventKit so the rules about it can
+/// be tested without a calendar.
 public struct Meeting: Identifiable, Hashable, Sendable {
+    public enum Kind: String, Hashable, Sendable { case event, reminder }
+
     /// Unique per occurrence: a repeating event's occurrences share EventKit's identifier, so the start is part of it.
     public var id: String
+    public var kind: Kind
+    /// Shared by every occurrence of a repeating event (EventKit's identifier), for overrides that apply to them all.
+    /// For a reminder, its calendar item identifier, which completing it needs.
+    public var seriesID: String?
+    /// One occurrence of a repeating event.
+    public var isRecurring: Bool
     public var title: String
     public var start: Date
     public var end: Date
@@ -18,11 +27,19 @@ public struct Meeting: Identifiable, Hashable, Sendable {
     /// You said no.
     public var declined: Bool
     public var cancelled: Bool
+    /// A reminder marked high priority.
+    public var isHighPriority: Bool
 
-    public init(id: String, title: String, start: Date, end: Date, isAllDay: Bool = false, calendarID: String = "",
+    public init(id: String, kind: Kind = .event, seriesID: String? = nil, isRecurring: Bool = false, title: String,
+                start: Date, end: Date, isAllDay: Bool = false, calendarID: String = "",
                 calendarTitle: String = "", location: String? = nil, notes: String? = nil, url: URL? = nil,
-                hasOtherAttendees: Bool = false, declined: Bool = false, cancelled: Bool = false) {
+                hasOtherAttendees: Bool = false, declined: Bool = false, cancelled: Bool = false,
+                isHighPriority: Bool = false) {
         self.id = id
+        self.kind = kind
+        self.seriesID = seriesID
+        self.isRecurring = isRecurring
+        self.isHighPriority = isHighPriority
         self.title = title
         self.start = start
         self.end = end
