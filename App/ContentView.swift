@@ -49,8 +49,10 @@ struct ContentView: View {
                             ForEach(items) { MeetingRow(meeting: $0, model: model) }
                         }
                     }
-                    .frame(maxHeight: 280)
+                    // The popover sizes to its content, and a scroll view has none of its own: a few rows are
+                    // their own height, more get a fixed one (a bare maxHeight comes out as zero).
                     .fixedSize(horizontal: false, vertical: items.count <= 6)
+                    .frame(height: items.count <= 6 ? nil : 280)
                 }
             }
             Divider()
