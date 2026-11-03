@@ -32,6 +32,8 @@ final class AppModel {
     @ObservationIgnored private var shownDespiteSharing: Set<String> = []
     /// Events the calendar popover has read, unfiltered, by the month they were read for (with a week either side).
     @ObservationIgnored private var monthCache: [Date: [Meeting]] = [:]
+    /// Alerts other apps asked for (`slaps://alert`, AppleScript), until they're over. Not kept across a quit.
+    private(set) var customAlerts: [Meeting] = []
     /// A pretend meeting from Test Alert, which is never in the calendar.
     private var testMeeting: Meeting?
 
@@ -47,6 +49,8 @@ final class AppModel {
             if filter.includeReminders && !oldValue.includeReminders { askForReminders() } else { tick() }
         }
     }
+    /// Whether other apps may use slaps:// and AppleScript.
+    var allowExternal: Bool { didSet { defaults.set(allowExternal, forKey: PrefKey.allowExternal) } }
     var pauseWhileSharing: Bool { didSet { defaults.set(pauseWhileSharing, forKey: PrefKey.pauseWhileSharing); tick() } }
     var hotKeysEnabled: Bool {
         didSet {
@@ -65,6 +69,7 @@ final class AppModel {
         showDateInMenuBar = defaults.bool(forKey: PrefKey.showDate)
         filter = defaults.alertFilter
         pauseWhileSharing = defaults.object(forKey: PrefKey.pauseWhileSharing) as? Bool ?? true
+        allowExternal = defaults.object(forKey: PrefKey.allowExternal) as? Bool ?? true
         hotKeysEnabled = defaults.object(forKey: PrefKey.hotKeys) as? Bool ?? true
         overrides = defaults.overrides
         pausedUntil = defaults.object(forKey: PrefKey.pausedUntil) as? Date
@@ -74,7 +79,7 @@ final class AppModel {
 
     /// Meetings and reminders that pass the filter and haven't ended, soonest first. A reminder stays until it's done.
     var upcoming: [Meeting] {
-        meetings.filter { m in
+        (meetings + customAlerts).filter { m in
             filter.allows(m) && (m.kind == .reminder ? true : m.end > now)
         }
         .sorted { $0.start < $1.start }
@@ -103,7 +108,7 @@ final class AppModel {
             fetch()
             while !Task.isCancelled {
                 tick()
-                try? await Task.sleep(for: .seconds(5))
+                try? await Task.sleep(for: .seconds(untilNextTick))
             }
         }
     }
@@ -146,18 +151,25 @@ final class AppModel {
         meetings = events + meetings.filter { $0.kind == .reminder }
         lastFetch = now
         overrides.prune(before: now)
+        let keep = Set(customAlerts.map(\.id))
         tick()
         guard filter.includeReminders else {
             meetings = events
-            state.keepOnly(Set(meetings.map(\.id)))
+            state.keepOnly(Set(meetings.map(\.id)).union(keep))
             return
         }
         Task {
             let reminders = await calendar.reminders(from: now.addingTimeInterval(-3600), to: now.addingTimeInterval(24 * 3600))
             meetings = events + reminders
-            state.keepOnly(Set(meetings.map(\.id)))
+            state.keepOnly(Set(meetings.map(\.id)).union(customAlerts.map(\.id)))
             tick()
         }
+    }
+
+    /// Every 5 seconds, or sooner when an alert is due before then, so it goes up on time.
+    private var untilNextTick: TimeInterval {
+        let next = schedule.nextFire(upcoming, after: now, state: state, overrides: overrides)
+        return min(5, max(0.1, (next ?? .distantFuture).timeIntervalSince(Date())))
     }
 
     /// Puts up, changes or takes down the overlay to match the clock.
@@ -165,6 +177,7 @@ final class AppModel {
         now = Date()
         if now.timeIntervalSince(lastFetch) > 5 * 60 { fetch(); return }
         if let until = pausedUntil, until <= now { pausedUntil = nil }
+        customAlerts.removeAll { $0.end <= now || state.dismissed.contains($0.id) }
         var due = isPaused ? [] : schedule.due(upcoming, at: now, state: state, overrides: overrides)
         // Held back while sharing; the menu bar shows they're waiting, and they go up when sharing stops.
         if pauseWhileSharing, !due.isEmpty, alerting.isEmpty, shownDespiteSharing.isDisjoint(with: due.map(\.id)),
@@ -222,10 +235,34 @@ final class AppModel {
         filter.allows(meeting) && overrides.override(for: meeting) != .skip
     }
 
+    // MARK: Other apps
+
+    /// Runs a command from another app. Throws, with a message for the caller, when it can't.
+    func perform(_ command: ExternalCommand) throws {
+        guard allowExternal else {
+            throw ExternalCommand.Failure("Other apps can't control Slaps: Settings › General › Allow Other Apps")
+        }
+        switch command {
+        case .alert(let alert):
+            customAlerts.append(alert.meeting(id: "custom-\(UUID().uuidString)"))
+            tick()
+        case .pause(let interval): pause(for: interval)
+        case .resume: resume()
+        case .dismiss: dismiss(alerting)
+        case .join: joinCurrentOrNext()
+        }
+    }
+
+    /// Takes back an alert another app asked for, before it goes up.
+    func cancel(_ custom: Meeting) {
+        customAlerts.removeAll { $0.id == custom.id }
+        tick()
+    }
+
     // MARK: Actions
 
     func join(_ meeting: Meeting) {
-        if let url = meeting.link?.url { NSWorkspace.shared.open(url) }
+        if let url = meeting.link?.url ?? (meeting.kind == .custom ? meeting.url : nil) { NSWorkspace.shared.open(url) }
         finish([meeting])
     }
 

@@ -123,6 +123,11 @@ private struct MeetingRow: View {
                     .controlSize(.small)
             }
             if meeting.kind == .event && !isOver && !meeting.isAllDay { overrideMenu }
+            if meeting.kind == .custom {
+                Button { model.cancel(meeting) } label: { Image(systemName: "xmark.circle") }
+                    .buttonStyle(.borderless)
+                    .help("Cancel this alert")
+            }
         }
     }
 
@@ -179,6 +184,9 @@ private struct MeetingRow: View {
         let time = meeting.start.formatted(date: .omitted, time: .shortened)
         let now = model.now
         let day = Calendar.current.isDateInToday(meeting.start) ? "" : "Tomorrow "
+        if meeting.kind == .custom {
+            return meeting.start <= now ? "Now · from \(meeting.calendarTitle)" : "\(time) · from \(meeting.calendarTitle)"
+        }
         if meeting.kind == .reminder {
             return meeting.start <= now ? "Overdue · \(meeting.calendarTitle)" : "Due \(day)\(time) · \(meeting.calendarTitle)"
         }

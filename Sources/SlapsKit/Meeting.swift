@@ -3,7 +3,8 @@ import Foundation
 /// One occurrence of a calendar event, or a reminder with a due time, copied out of EventKit so the rules about it can
 /// be tested without a calendar.
 public struct Meeting: Identifiable, Hashable, Sendable {
-    public enum Kind: String, Hashable, Sendable { case event, reminder }
+    /// A calendar event, a reminder, or an alert another app asked for (`ExternalCommand`).
+    public enum Kind: String, Hashable, Sendable { case event, reminder, custom }
 
     /// Unique per occurrence: a repeating event's occurrences share EventKit's identifier, so the start is part of it.
     public var id: String

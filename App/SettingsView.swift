@@ -53,6 +53,14 @@ private struct GeneralSettings: View {
                     .foregroundStyle(.secondary)
             }
             Section {
+                Toggle("Allow other apps to put up alerts and pause Slaps", isOn: $model.allowExternal)
+            } footer: {
+                Text("With slaps:// links, like open \"slaps://alert?title=Deploy%20done&in=5\", or AppleScript: "
+                    + "tell application \"Slaps\" to show alert \"Deploy done\". See the README for the rest.")
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+            Section {
                 Toggle("Keyboard shortcuts", isOn: $model.hotKeysEnabled)
                 ForEach(HotKeys.Action.allCases) { action in
                     LabeledContent(action.title) {

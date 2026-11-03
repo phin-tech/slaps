@@ -19,6 +19,11 @@ struct SlapsApp: App {
 
 /// Starts the clock at launch, not when the menu is first opened.
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Before launch finishes, so a slaps:// URL that launched Slaps isn't missed.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        MainActor.assumeIsolated { URLCommands.install() }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
             #if DEBUG

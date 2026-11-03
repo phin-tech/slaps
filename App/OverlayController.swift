@@ -125,6 +125,13 @@ struct AlertView: View {
                 }
                 .buttonStyle(AlertButtonStyle(fill: theme.accent, text: theme == .paper ? .white : .black))
                 .keyboardShortcut(key(.defaultAction))
+            } else if first.kind == .custom, first.link == nil, let url = first.url {
+                // Not a call we know: say where it goes, since anyone can send one.
+                Button { model.join(first) } label: {
+                    Label("Open \(url.host ?? "Link")", systemImage: "arrow.up.right.square.fill").frame(minWidth: 220)
+                }
+                .buttonStyle(AlertButtonStyle(fill: theme.accent, text: theme == .paper ? .white : .black))
+                .keyboardShortcut(key(.defaultAction))
             } else if let link = first.link {
                 Button { model.join(first) } label: {
                     Label("Join \(link.service)", systemImage: "video.fill").frame(minWidth: 220)
@@ -147,7 +154,7 @@ struct AlertView: View {
                 Text("Dismiss").frame(minWidth: 120)
             }
             .buttonStyle(AlertButtonStyle(fill: theme.foreground.opacity(0.15), text: theme.foreground))
-            .keyboardShortcut(key(first.link == nil && first.kind == .event ? .defaultAction : nil))
+            .keyboardShortcut(key(first.link == nil && first.url == nil && first.kind != .reminder ? .defaultAction : nil))
         }
         .font(.title3.weight(.semibold))
         // Escape always dismisses, even when Dismiss is the default button.
@@ -155,6 +162,9 @@ struct AlertView: View {
     }
 
     private func details(_ m: Meeting) -> String {
+        if m.kind == .custom {
+            return [m.notes, "From \(m.calendarTitle)"].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "  ·  ")
+        }
         if m.kind == .reminder {
             return ["Due \(m.start.formatted(date: .omitted, time: .shortened))", m.calendarTitle]
                 .filter { !$0.isEmpty }.joined(separator: "  ·  ")
@@ -167,6 +177,7 @@ struct AlertView: View {
     private func countdown(for m: Meeting, now: Date) -> String {
         let s = Int(m.start.timeIntervalSince(now).rounded())
         if m.kind == .reminder { return s > 0 ? String(format: "Reminder in %d:%02d", s / 60, s % 60) : "Reminder" }
+        if m.kind == .custom { return s > 0 ? String(format: "In %d:%02d", s / 60, s % 60) : "Now" }
         if s > 0 { return String(format: "Starts in %d:%02d", s / 60, s % 60) }
         if s > -60 { return "Starting now" }
         return "Started \(-s / 60) min ago"

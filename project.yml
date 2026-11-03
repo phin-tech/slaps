@@ -25,7 +25,11 @@ targets:
   Slaps:
     type: application
     platform: macOS
-    sources: [App]
+    sources:
+      - App
+      # The AppleScript dictionary (App/Scripting.swift runs its commands).
+      - path: Resources/Slaps.sdef
+        buildPhase: resources
     # A shared scheme, generated every time: without one, Xcode can remember a scheme that a regenerate
     # removed and then show no way to build or archive the app.
     scheme: {}
@@ -59,6 +63,12 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # A menu bar app: no Dock icon, no main menu.
         LSUIElement: true
+        # For other apps: slaps:// URLs, and AppleScript (Resources/Slaps.sdef).
+        CFBundleURLTypes:
+          - CFBundleURLName: tech.phin.slaps
+            CFBundleURLSchemes: [slaps]
+        NSAppleScriptEnabled: true
+        OSAScriptingDefinition: Slaps.sdef
         NSCalendarsFullAccessUsageDescription: Slaps reads your calendars to put an alert in front of you before each meeting.
         NSCalendarsUsageDescription: Slaps reads your calendars to put an alert in front of you before each meeting.
         NSRemindersFullAccessUsageDescription: Slaps alerts you when a reminder with a time is due, and marks it done when you ask.

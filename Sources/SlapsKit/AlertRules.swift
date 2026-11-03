@@ -20,6 +20,7 @@ public struct AlertFilter: Codable, Equatable, Sendable {
     public init() {}
 
     public func allows(_ meeting: Meeting) -> Bool {
+        if meeting.kind == .custom { return true }   // asked for directly, so never filtered out
         if meeting.cancelled { return false }
         if excludedCalendarIDs.contains(meeting.calendarID) { return false }
         if meeting.kind == .reminder {
@@ -103,7 +104,7 @@ public struct AlertSchedule: Equatable, Sendable {
         switch overrides.override(for: meeting) {
         case .skip: return nil
         case .leadTime(let t): lead = t
-        case nil: lead = meeting.kind == .reminder ? 0 : leadTime   // a reminder is due at its time
+        case nil: lead = meeting.kind == .event ? leadTime : 0   // a reminder or a custom alert is due at its time
         }
         let latest = min(meeting.start.addingTimeInterval(grace), meeting.end)
         let fire = meeting.start.addingTimeInterval(-lead)

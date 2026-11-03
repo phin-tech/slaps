@@ -61,6 +61,7 @@ enum PrefKey {
     static let overrides = "overrides"
     static let showDate = "showDateInMenuBar"
     static let againAtStart = "againAtStart"
+    static let allowExternal = "allowExternal"
 }
 
 extension UserDefaults {

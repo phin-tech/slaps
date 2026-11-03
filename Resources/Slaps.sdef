@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<!-- Slaps's AppleScript commands; App/Scripting.swift runs them. The same commands are slaps:// URLs. -->
+<dictionary title="Slaps Terminology" xmlns:xi="http://www.w3.org/2003/XInclude">
+    <xi:include href="file:///System/Library/ScriptingDefinitions/CocoaStandard.sdef"
+                xpointer="xpointer(/dictionary/suite[@name='Standard Suite'])"/>
+    <suite name="Slaps Suite" code="SLPS" description="Put up alerts, and pause or resume Slaps.">
+        <command name="show alert" code="SLPSshow" description="Put up a full-screen alert, now or later.">
+            <cocoa class="SlapsShowAlertCommand"/>
+            <direct-parameter type="text" description="The alert's title."/>
+            <parameter name="in minutes" code="SLmn" type="real" optional="yes"
+                       description="How many minutes from now (default: now).">
+                <cocoa key="minutes"/>
+            </parameter>
+            <parameter name="at" code="SLat" type="date" optional="yes" description="When, instead of in minutes.">
+                <cocoa key="date"/>
+            </parameter>
+            <parameter name="link" code="SLlk" type="text" optional="yes"
+                       description="An http or https link for the alert's button, like a call to join.">
+                <cocoa key="link"/>
+            </parameter>
+            <parameter name="notes" code="SLnt" type="text" optional="yes" description="A line under the title.">
+                <cocoa key="notes"/>
+            </parameter>
+            <parameter name="from" code="SLsr" type="text" optional="yes"
+                       description="Who's asking, shown on the alert (default: AppleScript).">
+                <cocoa key="source"/>
+            </parameter>
+        </command>
+        <command name="pause alerts" code="SLPSpaus" description="Pause alerts, for an hour unless told otherwise.">
+            <cocoa class="SlapsPauseCommand"/>
+            <parameter name="for minutes" code="SLmn" type="real" optional="yes" description="How long.">
+                <cocoa key="minutes"/>
+            </parameter>
+        </command>
+        <command name="resume alerts" code="SLPSresm" description="Undo a pause.">
+            <cocoa class="SlapsResumeCommand"/>
+        </command>
+        <command name="dismiss alert" code="SLPSdism" description="Dismiss the alert on screen.">
+            <cocoa class="SlapsDismissCommand"/>
+        </command>
+        <command name="join meeting" code="SLPSjoin"
+                 description="Join the call of the alert on screen, or of a meeting under way or starting within 10 minutes.">
+            <cocoa class="SlapsJoinCommand"/>
+        </command>
+    </suite>
+</dictionary>
