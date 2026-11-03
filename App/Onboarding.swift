@@ -45,9 +45,14 @@ final class OnboardingController: NSObject, NSWindowDelegate {
         window?.close()
     }
 
-    /// Closing it counts as done too: it was seen, and Settings can bring it back.
-    func windowWillClose(_ notification: Notification) {
+    /// Closing it with its close button counts as done too: it was seen, and Settings can bring it back. Quitting
+    /// Slaps closes it without asking, and doesn't count.
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
         UserDefaults.standard.set(true, forKey: Self.doneKey)
+        return true
+    }
+
+    func windowWillClose(_ notification: Notification) {
         window = nil
     }
 }

@@ -7,7 +7,8 @@ app_slug: slaps
 app_store: false
 bundle_id: tech.phin.slaps
 description: Full-screen meeting alerts you cannot miss
-devices: false
+devices: true
+devices_platform: macos
 document_extension: ''
 github_repo: phin-tech/slaps
 homebrew_tap: ''

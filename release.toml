@@ -7,6 +7,11 @@ description = "Full-screen meeting alerts you cannot miss"
 team_id = "J35P7AJDN7"
 op_item = "op://Development/lc6wrq7lltjd47uue26cdxttzu"
 
+# A development build, as Xcode's Run would put it there. Only devices in the team's profile (and this Mac) run it.
+# One that can't be reached is skipped, and `just ship` lists it at the end.
+[devices]
+platform = "macos"
+
 # `just notes patch` drafts release notes with a cheap model on OpenRouter. Its key is openrouter_api_key in the secrets
 # store unless this says otherwise (another field, or an op:// reference to any item); OPENROUTER_API_KEY overrides both.
 # [notes]

@@ -49,7 +49,12 @@ release *args:
 appcast *args:
     {{release_tool}} appcast "$@"
 
-# The whole release: bump, commit, push, notarize, GitHub release, appcast (`ship beta [--of patch|major]`: a pre-release). Ship from main
+# Put Slaps where release.toml says: a development build on this Mac; a host or device name picks one
+[positional-arguments]
+install *args:
+    {{release_tool}} install "$@"
+
+# The whole release: bump, commit, push, notarize, GitHub release, appcast, install (`ship beta [--of patch|major]`: a pre-release). Ship from main
 [positional-arguments]
 ship part *args:
     {{release_tool}} ship "$@"
