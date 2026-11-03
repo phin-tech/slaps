@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             UpdateChecker.shared.start()
             #endif
             AppModel.shared.start()
+            if !OnboardingController.isDone { OnboardingController.shared.show() }
         }
     }
 }

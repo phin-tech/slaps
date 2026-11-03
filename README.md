@@ -24,6 +24,8 @@ when the meeting starts.
 - **Menu bar:** a month calendar with a dot on busy days, the chosen day's agenda with Join buttons, minutes to the
   next meeting (and the date, if you like), pause (30 min, 1 or 2 hours, until tomorrow) and a test alert.
 - **Settings:** lead time, sound, theme (Midnight, Ember, Forest, Paper), open at login.
+- **Welcome window** on first launch: calendar access, when to alert, reminders, open at login and a test alert,
+  as a checklist. Settings › General opens it again.
 
 ## Develop
 

@@ -19,6 +19,7 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
   menu [Menu Sub ... Item]   choose a main-menu item, or list the menu bar or a menu
   alert [reminder]           put up a test alert, of a meeting or a reminder (windows lists it first)
   popover                    click the menu bar item, opening or closing the popover
+  onboarding                 open the welcome window
   state                      what the app thinks is alerting
   hotkeys                    how many global shortcuts are registered
   sharing                    whether screen sharing is detected
@@ -35,7 +36,7 @@ def request(argv):
     command, args = argv[0], argv[1:]
     if command == "alert":
         return {"command": "alert", "reminder": args[:1] == ["reminder"]}
-    if command in ("ping", "windows", "dismiss", "popover", "hotkeys", "sharing", "state", "quit"):
+    if command in ("ping", "windows", "dismiss", "popover", "onboarding", "hotkeys", "sharing", "state", "quit"):
         return {"command": command}
     if command == "snapshot":
         if not args:

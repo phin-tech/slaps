@@ -97,7 +97,8 @@ final class AppModel {
         }
         updateHotKeys()
         Task {
-            if calendar.access == .notAsked { _ = await calendar.requestAccess() }
+            // The first time, the welcome window asks, with an explanation; after that, ask if still unanswered.
+            if OnboardingController.isDone && calendar.access == .notAsked { _ = await calendar.requestAccess() }
             if filter.includeReminders && calendar.remindersAccess == .notAsked { _ = await calendar.requestRemindersAccess() }
             fetch()
             while !Task.isCancelled {

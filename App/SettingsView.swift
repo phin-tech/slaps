@@ -18,7 +18,7 @@ struct SettingsView: View {
 
 private struct GeneralSettings: View {
     @Bindable var model: AppModel
-    @State private var openAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var openAtLogin = LoginItem.isEnabled
     @State private var loginError: String?
     #if !APP_STORE
     @AppStorage(UpdateChecker.betaKey) private var betaUpdates = UpdateChecker.runningBeta
@@ -68,13 +68,14 @@ private struct GeneralSettings: View {
                 Toggle("Open Slaps at login", isOn: $openAtLogin)
                     .onChange(of: openAtLogin) { _, on in
                         do {
-                            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+                            try LoginItem.set(on)
                             loginError = nil
                         } catch {
                             loginError = error.localizedDescription
                         }
                     }
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.red) }
+                Button("Show the Welcome Window") { OnboardingController.shared.show() }
             }
             #if !APP_STORE
             Section {

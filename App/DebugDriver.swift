@@ -76,6 +76,9 @@ final class DebugDriver {
                 }
             }
             throw DebugError("no menu bar item")
+        case "onboarding":
+            OnboardingController.shared.show()
+            return "welcome window up"
         case "state":
             let m = AppModel.shared
             return "alerting: \(m.alerting.map(\.title)); upcoming: \(m.upcoming.count); paused: \(m.isPaused)"
@@ -94,7 +97,7 @@ final class DebugDriver {
             }
             return "quitting"
         default:
-            throw DebugError("unknown command '\(command)' (ping, windows, snapshot, menu, alert, dismiss, popover, hotkeys, sharing, state, quit)")
+            throw DebugError("unknown command '\(command)' (ping, windows, snapshot, menu, alert, dismiss, popover, onboarding, hotkeys, sharing, state, quit)")
         }
     }
 
