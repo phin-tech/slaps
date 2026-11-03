@@ -18,7 +18,12 @@ final class CalendarSource {
 
     private let store = EKEventStore()
 
-    var access: Access { Self.access(.event) }
+    var access: Access {
+        #if DEBUG
+        if DemoData.isOn { return .granted }
+        #endif
+        return Self.access(.event)
+    }
     var remindersAccess: Access { Self.access(.reminder) }
 
     private static func access(_ type: EKEntityType) -> Access {
@@ -47,6 +52,9 @@ final class CalendarSource {
 
     /// The calendars, then (with access) the reminder lists, each under its account.
     func calendars() -> [CalendarInfo] {
+        #if DEBUG
+        if DemoData.isOn { return DemoData.calendars }
+        #endif
         var all: [CalendarInfo] = []
         if access == .granted {
             all += store.calendars(for: .event).map { info($0, account: $0.source?.title ?? "Other") }
@@ -98,6 +106,9 @@ final class CalendarSource {
 
     /// Every event occurrence overlapping `start..<end`.
     func meetings(from start: Date, to end: Date) -> [Meeting] {
+        #if DEBUG
+        if DemoData.isOn { return DemoData.meetings(from: start, to: end) }
+        #endif
         guard access == .granted else { return [] }
         let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
         return store.events(matching: predicate).map(Self.meeting)

@@ -10,7 +10,7 @@ import AppKit
 ///
 ///     {"command": "ping"}
 ///     {"command": "windows"}                                  visible windows, front first: index, title, frame
-///     {"command": "snapshot", "path": "/tmp/out.png", "window": 0}
+///     {"command": "snapshot", "path": "/tmp/out.png", "window": 0}   (or "window": "a title")
 ///     {"command": "menu", "path": ["File", "New Window"]}     choose a main-menu item (or list a menu's items)
 ///     {"command": "alert", "reminder": false}                 put up a test alert (of a reminder)
 ///     {"command": "hotkeys"}                                  how many global shortcuts are registered
@@ -59,7 +59,7 @@ final class DebugDriver {
             return lines.isEmpty ? "no windows" : lines.joined(separator: "\n")
         case "snapshot":
             guard let path = request["path"] as? String else { throw DebugError("snapshot needs a path") }
-            return try snapshot(window(request["window"] as? Int ?? 0), to: URL(fileURLWithPath: path))
+            return try snapshot(window(request["window"]), to: URL(fileURLWithPath: path))
         case "menu":
             return try menu(request["path"] as? [String] ?? [])
         case "alert":
@@ -122,8 +122,16 @@ final class DebugDriver {
             .sorted { ($0.level.rawValue, -$0.orderedIndex) > ($1.level.rawValue, -$1.orderedIndex) }
     }
 
-    private func window(_ index: Int) throws -> NSWindow {
+    /// A window by its index in `windows` (default 0), or by its title.
+    private func window(_ which: Any?) throws -> NSWindow {
         let windows = visibleWindows()
+        if let title = which as? String {
+            guard let w = windows.first(where: { $0.title == title }) else {
+                throw DebugError("no window titled '\(title)' (\(windows.map(\.title)))")
+            }
+            return w
+        }
+        let index = which as? Int ?? 0
         guard windows.indices.contains(index) else { throw DebugError("no window \(index) (\(windows.count) visible)") }
         return windows[index]
     }
@@ -135,12 +143,33 @@ final class DebugDriver {
         let view = content.superview ?? content
         view.layoutSubtreeIfNeeded()
         view.displayIfNeeded()
-        guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw DebugError("could not make a bitmap") }
-        view.cacheDisplay(in: view.bounds, to: rep)
+        // The window server's picture of the window, as it is on screen; an app may take its own windows' without
+        // screen-recording permission. Failing that, the view drawn the way printing does, which leaves out some of
+        // SwiftUI's shapes.
+        let rep: NSBitmapImageRep
+        if let image = Self.windowServerImage(of: window) {
+            rep = NSBitmapImageRep(cgImage: image)
+        } else {
+            guard let drawn = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw DebugError("could not make a bitmap") }
+            view.cacheDisplay(in: view.bounds, to: drawn)
+            rep = drawn
+        }
         guard let png = rep.representation(using: .png, properties: [:]) else { throw DebugError("could not encode PNG") }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try png.write(to: url)
         return "wrote \(url.path) (\(rep.pixelsWide)x\(rep.pixelsHigh))"
+    }
+
+    /// CGWindowListCreateImage, which the SDK no longer lets code name (ScreenCaptureKit would need permission), looked
+    /// up at run time. Debug builds only.
+    private static func windowServerImage(of window: NSWindow) -> CGImage? {
+        typealias Create = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") else { return nil }
+        let create = unsafeBitCast(symbol, to: Create.self)
+        // .optionIncludingWindow; .boundsIgnoreFraming | .bestResolution
+        guard let image = create(.null, 1 << 3, UInt32(window.windowNumber), 1 << 0 | 1 << 3)?.takeRetainedValue(),
+              image.width > 1 else { return nil }
+        return image
     }
 
     // MARK: Menus

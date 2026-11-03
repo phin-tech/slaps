@@ -2,6 +2,8 @@
 
 Full-screen meeting alerts you cannot miss. A personal take on [In Your Face](https://www.inyourface.app/).
 
+![A Slaps alert: "Design review: onboarding", starts in 0:54, with Join Zoom, Snooze and Dismiss](docs/screenshots/alert.png)
+
 A minute before a meeting (or however long you choose), Slaps covers every screen, in every Space and over
 full-screen apps, with the meeting's title, a countdown and a **Join** button for its video call. Return joins, Escape
 dismisses, or snooze it for 1 or 5 minutes or until it starts. Optionally, an alert dismissed early comes back
@@ -26,6 +28,41 @@ when the meeting starts.
 - **Settings:** lead time, sound, theme (Midnight, Ember, Forest, Paper), open at login.
 - **Welcome window** on first launch: calendar access, when to alert, reminders, open at login and a test alert,
   as a checklist. Settings › General opens it again.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/menu-bar.png" width="340" alt="The menu bar popover: November's calendar with dots on busy days, and today's meetings with Join buttons"></td>
+    <td align="center"><img src="docs/screenshots/welcome.png" width="420" alt="The welcome window's setup checklist"></td>
+  </tr>
+  <tr>
+    <td align="center">The menu bar: the month, and the day's meetings</td>
+    <td align="center">The welcome window, on first launch</td>
+  </tr>
+</table>
+
+<p align="center"><img src="docs/screenshots/settings.png" width="480" alt="Settings › General: lead time, alert again at start, sound, theme, holding alerts while sharing"></p>
+
+## Install
+
+Slaps needs macOS 14 or later. There's no release to download yet, so build it with Xcode 26.6 or later,
+[xcodegen](https://github.com/yonaskolb/XcodeGen), [just](https://just.systems) and [uv](https://docs.astral.sh/uv/)
+(`brew install xcodegen just uv`):
+
+```sh
+git clone https://github.com/phin-tech/slaps.git && cd slaps
+just install
+```
+
+`just install` builds Slaps signed for development, puts it in `/Applications` in place of any copy there, and opens
+it. Run it again after pulling changes. It signs with the team in `Signing.local.xcconfig` (gitignored; see
+`Signing.xcconfig`); without one, the build is signed to run only on this Mac and macOS asks for calendar access again
+after every install.
+
+`just install` runs [app-release](https://git.phin.tech/sam/app-release), which is private. Without access to it,
+`just run` builds a Debug copy and opens it from Xcode's build folder.
+
+Slaps lives in the menu bar, with no Dock icon. On first launch the welcome window walks through calendar access and
+the rest; quit it from the popover's ⏻ button.
 
 ## Other apps
 
@@ -65,6 +102,7 @@ just run     # needs Xcode and xcodegen
 just test
 just debug-app && just debug alert && just debug snapshot /tmp/alert.png   # look at the alert
 just debug popover && just debug snapshot /tmp/popover.png                 # and the menu bar popover
+just screenshots   # remake docs/screenshots, from a Debug build showing made-up meetings (SLAPS_DEMO=1)
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md).

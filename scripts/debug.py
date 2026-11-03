@@ -15,7 +15,7 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
 
   ping                       check the app is listening
   windows                    list visible windows, front first: index, title, origin, size
-  snapshot <out.png> [N]     render window N (default 0, the front one) to a PNG
+  snapshot <out.png> [N|T]   render window N (default 0, the front one), or the one titled T, to a PNG
   menu [Menu Sub ... Item]   choose a main-menu item, or list the menu bar or a menu
   alert [reminder]           put up a test alert, of a meeting or a reminder (windows lists it first)
   popover                    click the menu bar item, opening or closing the popover
@@ -43,7 +43,7 @@ def request(argv):
             sys.exit("snapshot needs an output path")
         req = {"command": "snapshot", "path": os.path.abspath(args[0])}   # the app has its own cwd
         if len(args) > 1:
-            req["window"] = int(args[1])
+            req["window"] = int(args[1]) if args[1].isdigit() else args[1]   # an index, or a title
         return req
     if command == "menu":
         return {"command": "menu", "path": args}

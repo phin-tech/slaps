@@ -98,7 +98,7 @@ private struct MeetingRow: View {
     let model: AppModel
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .center) {
             if meeting.kind == .reminder {
                 Button { model.complete(meeting) } label: { Image(systemName: "circle") }
                     .buttonStyle(.borderless)

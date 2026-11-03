@@ -33,7 +33,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             UpdateChecker.shared.start()
             #endif
             AppModel.shared.start()
-            if !OnboardingController.isDone { OnboardingController.shared.show() }
+            #if DEBUG
+            let demo = DemoData.isOn   // screenshots open the welcome window themselves
+            #else
+            let demo = false
+            #endif
+            if !OnboardingController.isDone && !demo { OnboardingController.shared.show() }
         }
     }
 }

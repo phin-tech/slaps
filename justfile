@@ -28,6 +28,33 @@ debug-app *files: build
     open -n -g --env DEBUG_SOCKET="$HOME/Library/Application Support/Slaps/debug.sock" -a "$(xcodebuild -project Slaps.xcodeproj -scheme Slaps -showBuildSettings 2>/dev/null | awk '/ BUILT_PRODUCTS_DIR /{print $3}')/Slaps.app" "$@"
     scripts/debug.py ping >/dev/null && echo "Slaps is listening; try: just debug snapshot out.png"
 
+# Remake the README's screenshots in docs/screenshots, from a Debug build showing made-up meetings (SLAPS_DEMO)
+screenshots: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out=docs/screenshots; mkdir -p "$out"
+    sock="$HOME/Library/Application Support/Slaps/screenshots.sock"
+    debug() { scripts/debug.py --socket "$sock" "$@"; }
+    rm -f "$sock"
+    open -n -g --env DEBUG_SOCKET="$sock" --env SLAPS_DEMO=1 -a "$(xcodebuild -project Slaps.xcodeproj -scheme Slaps -showBuildSettings 2>/dev/null | awk '/ BUILT_PRODUCTS_DIR /{print $3}')/Slaps.app"
+    trap 'debug quit >/dev/null 2>&1 || true' EXIT
+    debug ping >/dev/null
+    # The demo's design review starts a minute after launch, so its alert is up within the lead time; or put one up.
+    for _ in $(seq 1 20); do debug state | grep -q 'Design review' && break; sleep 1; done
+    debug state | grep -q 'Design review' || debug alert >/dev/null
+    debug --wait 1 snapshot "$PWD/$out/alert.png" "Slaps alert" >/dev/null
+    debug dismiss >/dev/null
+    debug popover >/dev/null
+    debug --wait 1 snapshot "$PWD/$out/menu-bar.png" 0 >/dev/null
+    debug popover >/dev/null
+    debug onboarding >/dev/null
+    debug --wait 1 snapshot "$PWD/$out/welcome.png" "Welcome to Slaps" >/dev/null
+    debug menu Slaps "Settings…" >/dev/null
+    debug --wait 1 snapshot "$PWD/$out/settings.png" General >/dev/null
+    # The alert is the size of the screen; the README doesn't need all of it.
+    sips -Z 1600 "$out/alert.png" >/dev/null
+    ls -1 "$out"
+
 # Send a command to the Debug build started by debug-app (try: just debug help)
 [positional-arguments]
 debug *args:
