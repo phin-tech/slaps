@@ -1,0 +1,68 @@
+name: Slaps
+options:
+  bundleIdPrefix: tech.phin
+  # Matches the Xcode in use, so it does not offer to "update to recommended settings" on every regenerate.
+  xcodeVersion: "26.6"
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    # The release version (`just release` tags v<this>). `just bump` sets both. Project-wide, so anything embedded
+    # in the app carries the app's version and build number.
+    MARKETING_VERSION: "0.1.0"
+    # The build number Sparkle and App Store Connect compare: it only ever goes up.
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  Slaps:
+    path: .
+  # In-place updates (App/UpdateChecker.swift), for the Developer ID build only. app-release reads this version to
+  # fetch the matching appcast tools.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.0
+targets:
+  # The Developer ID build: notarized, published on GitHub, updated by Sparkle.
+  Slaps:
+    type: application
+    platform: macOS
+    sources: [App]
+    # A shared scheme, generated every time: without one, Xcode can remember a scheme that a regenerate
+    # removed and then show no way to build or archive the app.
+    scheme: {}
+    configFiles:
+      Debug: Signing.xcconfig
+      Release: Signing.xcconfig
+    dependencies:
+      - package: Slaps
+        product: SlapsKit
+      - package: Sparkle
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: tech.phin.slaps
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Slaps
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        ENABLE_HARDENED_RUNTIME: YES
+        DEAD_CODE_STRIPPING: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    # xcodegen writes these from the properties below; Generated/ is gitignored.
+    entitlements:
+      path: Generated/Slaps.entitlements
+      properties:
+        # The hardened runtime blocks calendar access without this.
+        com.apple.security.personal-information.calendars: true
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # A menu bar app: no Dock icon, no main menu.
+        LSUIElement: true
+        NSCalendarsFullAccessUsageDescription: Slaps reads your calendars to put an alert in front of you before each meeting.
+        NSCalendarsUsageDescription: Slaps reads your calendars to put an alert in front of you before each meeting.
+        # Sparkle: the appcast is an asset of the newest GitHub release (`just appcast` uploads it), and
+        # updates must be signed by the private key in op://Development/lc6wrq7lltjd47uue26cdxttzu (sparkle_private_key).
+        SUFeedURL: https://github.com/phin-tech/slaps/releases/latest/download/appcast.xml
+        SUPublicEDKey: 2mirghhdXOaz0RtSlgkR5MOzQxF+QkubzK9tgq8eO8U=
+        SUEnableAutomaticChecks: true

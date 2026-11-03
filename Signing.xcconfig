@@ -1,0 +1,13 @@
+// Signing for Slaps and everything it embeds. Without a local override, builds are signed to run locally
+// (ad-hoc). To sign with your team, create Signing.local.xcconfig (gitignored) next to this file:
+//
+//   DEVELOPMENT_TEAM = J35P7AJDN7
+//   CODE_SIGN_IDENTITY = Apple Development
+//
+// Slaps.xcodeproj is regenerated from project.yml, so team changes made in Xcode's Signing & Capabilities pane
+// do not survive `just gen`; put them in the local file instead. `just notarize` passes the team itself.
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Signing.local.xcconfig"

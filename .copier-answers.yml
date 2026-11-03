@@ -1,0 +1,22 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v0.3.1
+_src_path: git@git.phin.tech:sam/apple-template.git
+app_category: public.app-category.productivity
+app_name: Slaps
+app_slug: slaps
+app_store: false
+bundle_id: tech.phin.slaps
+description: Full-screen meeting alerts you cannot miss
+devices: false
+document_extension: ''
+github_repo: phin-tech/slaps
+homebrew_tap: ''
+include_cli: false
+install_on_macs: false
+license: Apache-2.0
+macos_min: '14.0'
+op_item: op://Development/lc6wrq7lltjd47uue26cdxttzu
+scope: app
+sparkle_public_key: 2mirghhdXOaz0RtSlgkR5MOzQxF+QkubzK9tgq8eO8U=
+team_id: J35P7AJDN7
+xcode_version: '26.6'

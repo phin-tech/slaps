@@ -1,0 +1,9 @@
+.build/
+.swiftpm/
+*.xcodeproj
+DerivedData/
+.DS_Store
+Signing.local.xcconfig
+build/
+# Info.plists and entitlements, which xcodegen writes from project.yml
+Generated/

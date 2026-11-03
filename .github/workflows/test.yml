@@ -1,0 +1,19 @@
+# The library's tests and ad-hoc signed builds. (The release tool, app-release, is private on git.phin.tech, so
+# `just release-check` runs locally, not here.)
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen just
+      - run: just test
+      - name: Build the app (ad-hoc signed)
+        run: just build
