@@ -37,6 +37,8 @@ final class AppModel {
 
     var leadTime: TimeInterval { didSet { defaults.set(leadTime, forKey: PrefKey.leadTime); tick() } }
     var sound: String { didSet { defaults.set(sound, forKey: PrefKey.sound) } }
+    /// Dismissing before the start brings the alert back when the meeting starts.
+    var againAtStart: Bool { didSet { defaults.set(againAtStart, forKey: PrefKey.againAtStart) } }
     var theme: Theme { didSet { defaults.set(theme.rawValue, forKey: PrefKey.theme) } }
     var showDateInMenuBar: Bool { didSet { defaults.set(showDateInMenuBar, forKey: PrefKey.showDate) } }
     var filter: AlertFilter {
@@ -58,6 +60,7 @@ final class AppModel {
     private init() {
         leadTime = defaults.object(forKey: PrefKey.leadTime) as? Double ?? 60
         sound = defaults.string(forKey: PrefKey.sound) ?? "Glass"
+        againAtStart = defaults.bool(forKey: PrefKey.againAtStart)
         theme = defaults.string(forKey: PrefKey.theme).flatMap(Theme.init(rawValue:)) ?? .midnight
         showDateInMenuBar = defaults.bool(forKey: PrefKey.showDate)
         filter = defaults.alertFilter
@@ -222,7 +225,7 @@ final class AppModel {
 
     func join(_ meeting: Meeting) {
         if let url = meeting.link?.url { NSWorkspace.shared.open(url) }
-        dismiss([meeting])
+        finish([meeting])
     }
 
     /// The shortcut's Join: the alert that's up, or else a meeting under way or starting within 10 minutes.
@@ -246,10 +249,26 @@ final class AppModel {
             calendar.complete(reminder: id)
             meetings.removeAll { $0.id == reminder.id }
         }
-        dismiss([reminder])
+        finish([reminder])
     }
 
+    /// Dismiss: done with them, or (with Alert Again When It Starts) back at their start.
     func dismiss(_ meetings: [Meeting]) {
+        let now = Date()
+        for m in meetings {
+            if m.id == testMeeting?.id {
+                testMeeting = nil
+            } else if let again = schedule.dismissal(of: m, at: now, againAtStart: againAtStart) {
+                state.snooze(m.id, until: again)
+            } else {
+                state.dismiss(m.id)
+            }
+        }
+        tick()
+    }
+
+    /// Done with them, whatever the settings: they've been joined or completed.
+    private func finish(_ meetings: [Meeting]) {
         for m in meetings {
             if m.id == testMeeting?.id { testMeeting = nil } else { state.dismiss(m.id) }
         }

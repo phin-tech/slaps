@@ -33,6 +33,8 @@ private struct GeneralSettings: View {
                         Text("\(m) minute\(m == 1 ? "" : "s") before").tag(Double(m * 60))
                     }
                 }
+                Toggle("If I dismiss it early, alert again when it starts", isOn: $model.againAtStart)
+                    .disabled(model.leadTime == 0)
                 Picker("Sound", selection: $model.sound) {
                     ForEach(AlertSound.all, id: \.self) { Text($0) }
                 }

@@ -208,3 +208,15 @@ func findsLinks(text: String, service: String, url: String) {
     let round = try JSONDecoder().decode(Overrides.self, from: JSONEncoder().encode(o))
     #expect(round == o)
 }
+
+@Test func dismissingEarlyCanAlertAgainAtStart() {
+    let s = AlertSchedule(leadTime: 600)
+    let m = meeting(startsIn: 10)
+    #expect(s.dismissal(of: m, at: t0, againAtStart: false) == nil)
+    #expect(s.dismissal(of: m, at: t0, againAtStart: true) == m.start)
+    #expect(s.dismissal(of: m, at: m.start.addingTimeInterval(-20), againAtStart: true) == nil)   // nearly started
+    #expect(s.dismissal(of: meeting(startsIn: 10) { $0.kind = .reminder }, at: t0, againAtStart: true) == nil)
+    var state = AlertState()                                     // the app snoozes until then
+    state.snooze(m.id, until: m.start)
+    #expect(s.due([m], at: m.start, state: state) == [m])
+}

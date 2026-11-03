@@ -60,6 +60,7 @@ enum PrefKey {
     static let hotKeys = "hotKeys"
     static let overrides = "overrides"
     static let showDate = "showDateInMenuBar"
+    static let againAtStart = "againAtStart"
 }
 
 extension UserDefaults {

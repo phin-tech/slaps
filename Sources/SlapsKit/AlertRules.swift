@@ -121,6 +121,13 @@ public struct AlertSchedule: Equatable, Sendable {
         .sorted { ($0.start, $0.title) < ($1.start, $1.title) }
     }
 
+    /// What Dismiss does to `meeting` at `now`: nil to be done with it, or a time to put the alert up again, when
+    /// `againAtStart` and the meeting is still more than half a minute off. Reminders are done when dismissed.
+    public func dismissal(of meeting: Meeting, at now: Date, againAtStart: Bool) -> Date? {
+        guard againAtStart, meeting.kind == .event, meeting.start.timeIntervalSince(now) > 30 else { return nil }
+        return meeting.start
+    }
+
     /// The next time an alert goes up after `now`, for scheduling a wake-up.
     public func nextFire(_ meetings: [Meeting], after now: Date, state: AlertState,
                          overrides: Overrides = Overrides()) -> Date? {

@@ -4,7 +4,8 @@ Full-screen meeting alerts you cannot miss. A personal take on [In Your Face](ht
 
 A minute before a meeting (or however long you choose), Slaps covers every screen, in every Space and over
 full-screen apps, with the meeting's title, a countdown and a **Join** button for its video call. Return joins, Escape
-dismisses, or snooze it for 1 or 5 minutes or until it starts.
+dismisses, or snooze it for 1 or 5 minutes or until it starts. Optionally, an alert dismissed early comes back
+when the meeting starts.
 
 - **Calendars:** everything in macOS's Calendar app, through EventKit: iCloud, and Google, Microsoft 365 or Exchange
   accounts added in System Settings › Internet Accounts. Turn calendars on and off in Settings.
