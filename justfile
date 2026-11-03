@@ -36,6 +36,8 @@ screenshots: build
     sock="$HOME/Library/Application Support/Slaps/screenshots.sock"
     debug() { scripts/debug.py --socket "$sock" "$@"; }
     rm -f "$sock"
+    # The demo keeps its own settings (tech.phin.slaps.demo); start them afresh, so the pictures show the defaults.
+    defaults delete tech.phin.slaps.demo >/dev/null 2>&1 || true
     open -n -g --env DEBUG_SOCKET="$sock" --env SLAPS_DEMO=1 -a "$(xcodebuild -project Slaps.xcodeproj -scheme Slaps -showBuildSettings 2>/dev/null | awk '/ BUILT_PRODUCTS_DIR /{print $3}')/Slaps.app"
     trap 'debug quit >/dev/null 2>&1 || true' EXIT
     debug ping >/dev/null
@@ -43,6 +45,12 @@ screenshots: build
     for _ in $(seq 1 20); do debug state | grep -q 'Design review' && break; sleep 1; done
     debug state | grep -q 'Design review' || debug alert >/dev/null
     debug --wait 1 snapshot "$PWD/$out/alert.png" "Slaps alert" >/dev/null
+    # The same alert as a banner, in the Custom theme's colours.
+    debug style top >/dev/null
+    debug theme custom >/dev/null
+    debug --wait 1 snapshot "$PWD/$out/banner.png" "Slaps alert" >/dev/null
+    debug style fullScreen >/dev/null
+    debug theme midnight >/dev/null
     debug dismiss >/dev/null
     debug popover >/dev/null
     debug --wait 1 snapshot "$PWD/$out/menu-bar.png" 0 >/dev/null
@@ -53,6 +61,7 @@ screenshots: build
     debug --wait 1 snapshot "$PWD/$out/settings.png" General >/dev/null
     # The alert is the size of the screen; the README doesn't need all of it.
     sips -Z 1600 "$out/alert.png" >/dev/null
+    sips -Z 1600 "$out/banner.png" >/dev/null
     ls -1 "$out"
 
 # Send a command to the Debug build started by debug-app (try: just debug help)

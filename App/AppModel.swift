@@ -12,7 +12,13 @@ final class AppModel {
     @ObservationIgnored let calendar = CalendarSource()
     @ObservationIgnored private let overlay = OverlayController()
     @ObservationIgnored private let hotKeys = HotKeys()
-    @ObservationIgnored private let defaults = UserDefaults.standard
+    /// The settings. A demo copy (`just screenshots`) keeps its own, so it can't change yours.
+    @ObservationIgnored private let defaults: UserDefaults = {
+        #if DEBUG
+        if DemoData.isOn { return UserDefaults(suiteName: "tech.phin.slaps.demo")! }
+        #endif
+        return .standard
+    }()
     @ObservationIgnored private var lastFetch = Date.distantPast
     @ObservationIgnored private var started = false
 
@@ -42,6 +48,21 @@ final class AppModel {
     /// Dismissing before the start brings the alert back when the meeting starts.
     var againAtStart: Bool { didSet { defaults.set(againAtStart, forKey: PrefKey.againAtStart) } }
     var theme: Theme { didSet { defaults.set(theme.rawValue, forKey: PrefKey.theme) } }
+    /// The Custom theme's colours.
+    var customBackground: ThemeColor { didSet { defaults.set(customBackground.hex, forKey: PrefKey.customBackground) } }
+    var customAccent: ThemeColor { didSet { defaults.set(customAccent.hex, forKey: PrefKey.customAccent) } }
+
+    /// What alerts are drawn in.
+    var palette: Palette {
+        theme == .custom ? Palette(background: customBackground, accent: customAccent) : Palette(theme)
+    }
+
+    var alertStyle: AlertStyle {
+        didSet {
+            defaults.set(alertStyle.rawValue, forKey: PrefKey.alertStyle)
+            if !alerting.isEmpty { overlay.show(alertStyle) }   // an alert that's up changes shape
+        }
+    }
     var showDateInMenuBar: Bool { didSet { defaults.set(showDateInMenuBar, forKey: PrefKey.showDate) } }
     var filter: AlertFilter {
         didSet {
@@ -66,6 +87,10 @@ final class AppModel {
         sound = defaults.string(forKey: PrefKey.sound) ?? "Glass"
         againAtStart = defaults.bool(forKey: PrefKey.againAtStart)
         theme = defaults.string(forKey: PrefKey.theme).flatMap(Theme.init(rawValue:)) ?? .midnight
+        customBackground = defaults.string(forKey: PrefKey.customBackground).flatMap(ThemeColor.init(hex:))
+            ?? ThemeColor(hex: "#B3261E")!
+        customAccent = defaults.string(forKey: PrefKey.customAccent).flatMap(ThemeColor.init(hex:)) ?? ThemeColor(hex: "#FFD60A")!
+        alertStyle = defaults.string(forKey: PrefKey.alertStyle).flatMap(AlertStyle.init(rawValue:)) ?? .fullScreen
         showDateInMenuBar = defaults.bool(forKey: PrefKey.showDate)
         filter = defaults.alertFilter
         pauseWhileSharing = defaults.object(forKey: PrefKey.pauseWhileSharing) as? Bool ?? true
@@ -194,7 +219,7 @@ final class AppModel {
         if alerting.isEmpty {
             overlay.hide()
         } else {
-            overlay.show()
+            overlay.show(alertStyle)
             if isNew { AlertSound.play(sound) }
         }
     }

@@ -1,5 +1,6 @@
 #if DEBUG
 import AppKit
+import SlapsKit
 
 /// Drives a Debug build over a Unix socket so an agent can look at the real app without screen-recording or
 /// accessibility permissions: the app renders its own windows to PNGs and chooses menu items itself.
@@ -76,6 +77,18 @@ final class DebugDriver {
                 }
             }
             throw DebugError("no menu bar item")
+        case "style":
+            guard let name = request["style"] as? String, let style = AlertStyle(rawValue: name) else {
+                throw DebugError("style is one of \(AlertStyle.allCases.map(\.rawValue))")
+            }
+            AppModel.shared.alertStyle = style
+            return "alert style \(name)"
+        case "theme":
+            guard let name = request["theme"] as? String, let theme = Theme(rawValue: name) else {
+                throw DebugError("theme is one of \(Theme.allCases.map(\.rawValue))")
+            }
+            AppModel.shared.theme = theme
+            return "theme \(name)"
         case "onboarding":
             OnboardingController.shared.show()
             return "welcome window up"
@@ -97,7 +110,7 @@ final class DebugDriver {
             }
             return "quitting"
         default:
-            throw DebugError("unknown command '\(command)' (ping, windows, snapshot, menu, alert, dismiss, popover, onboarding, hotkeys, sharing, state, quit)")
+            throw DebugError("unknown command '\(command)' (ping, windows, snapshot, menu, alert, dismiss, popover, style, theme, onboarding, hotkeys, sharing, state, quit)")
         }
     }
 
@@ -147,7 +160,9 @@ final class DebugDriver {
         // screen-recording permission. Failing that, the view drawn the way printing does, which leaves out some of
         // SwiftUI's shapes.
         let rep: NSBitmapImageRep
-        if let image = Self.windowServerImage(of: window) {
+        // The alert keeps itself out of screen capture (sharingType = .none), so the window server's picture of it is
+        // blank: draw that one instead.
+        if window.sharingType != .none, let image = Self.windowServerImage(of: window) {
             rep = NSBitmapImageRep(cgImage: image)
         } else {
             guard let drawn = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw DebugError("could not make a bitmap") }

@@ -19,6 +19,8 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
   menu [Menu Sub ... Item]   choose a main-menu item, or list the menu bar or a menu
   alert [reminder]           put up a test alert, of a meeting or a reminder (windows lists it first)
   popover                    click the menu bar item, opening or closing the popover
+  style fullScreen|top|bottom  how much of the screen alerts take
+  theme midnight|ember|forest|paper|custom   the alert's colours
   onboarding                 open the welcome window
   state                      what the app thinks is alerting
   hotkeys                    how many global shortcuts are registered
@@ -34,6 +36,10 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
 def request(argv):
     """The JSON request for a command line."""
     command, args = argv[0], argv[1:]
+    if command == "theme":
+        return {"command": "theme", "theme": args[0] if args else ""}
+    if command == "style":
+        return {"command": "style", "style": args[0] if args else ""}
     if command == "alert":
         return {"command": "alert", "reminder": args[:1] == ["reminder"]}
     if command in ("ping", "windows", "dismiss", "popover", "onboarding", "hotkeys", "sharing", "state", "quit"):

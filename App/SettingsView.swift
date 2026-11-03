@@ -33,6 +33,9 @@ private struct GeneralSettings: View {
                         Text("\(m) minute\(m == 1 ? "" : "s") before").tag(Double(m * 60))
                     }
                 }
+                Picker("Style", selection: $model.alertStyle) {
+                    ForEach(AlertStyle.allCases) { Text($0.name).tag($0) }
+                }
                 Toggle("If I dismiss it early, alert again when it starts", isOn: $model.againAtStart)
                     .disabled(model.leadTime == 0)
                 Picker("Sound", selection: $model.sound) {
@@ -41,6 +44,14 @@ private struct GeneralSettings: View {
                 .onChange(of: model.sound) { _, name in AlertSound.play(name) }
                 Picker("Theme", selection: $model.theme) {
                     ForEach(Theme.allCases) { Text($0.name).tag($0) }
+                }
+                if model.theme == .custom {
+                    ColorPicker("Background", selection: Binding(
+                        get: { Color(model.customBackground) }, set: { model.customBackground = ThemeColor($0) }),
+                        supportsOpacity: false)
+                    ColorPicker("Accent: the countdown and the Join button", selection: Binding(
+                        get: { Color(model.customAccent) }, set: { model.customAccent = ThemeColor($0) }),
+                        supportsOpacity: false)
                 }
                 Button("Show a Test Alert") { model.testAlert() }
             }

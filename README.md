@@ -9,6 +9,12 @@ full-screen apps, with the meeting's title, a countdown and a **Join** button fo
 dismisses, or snooze it for 1 or 5 minutes or until it starts. Optionally, an alert dismissed early comes back
 when the meeting starts.
 
+Or, if a whole screen is too much, a **banner** across the top or bottom fifth of each screen, above everything but
+leaving the rest usable. A banner doesn't take the keyboard from what you're typing in; click its buttons, or use
+⌃⌥⌘J and ⌃⌥⌘D.
+
+![The same alert as a banner across the top of the screen, in custom red and yellow](docs/screenshots/banner.png)
+
 - **Calendars:** everything in macOS's Calendar app, through EventKit: iCloud, and Google, Microsoft 365 or Exchange
   accounts added in System Settings › Internet Accounts. Turn calendars on and off in Settings.
 - **Call links:** Zoom, Google Meet, Teams, Webex, FaceTime, Slack huddles, Whereby, Jitsi, Chime, GoTo and more, found
@@ -25,7 +31,8 @@ when the meeting starts.
   hour or resumes. An alert ignores keys for its first 1.5 seconds, so typing elsewhere can't join or dismiss it.
 - **Menu bar:** a month calendar with a dot on busy days, the chosen day's agenda with Join buttons, minutes to the
   next meeting (and the date, if you like), pause (30 min, 1 or 2 hours, until tomorrow) and a test alert.
-- **Settings:** lead time, sound, theme (Midnight, Ember, Forest, Paper), open at login.
+- **Settings:** lead time, full screen or a banner at the top or bottom, sound, theme (Midnight, Ember, Forest,
+  Paper, or Custom: your own background and accent colours, with text that reads on them), open at login.
 - **Welcome window** on first launch: calendar access, when to alert, reminders, open at login and a test alert,
   as a checklist. Settings › General opens it again.
 
