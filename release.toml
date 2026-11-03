@@ -16,3 +16,7 @@ platform = "macos"
 # store unless this says otherwise (another field, or an op:// reference to any item); OPENROUTER_API_KEY overrides both.
 # [notes]
 # api_key = "op://Private/OpenRouter API Key/credential"
+
+# The download page, apps.phin.tech: `release` (and so `ship`) puts each release's zip there too, with the
+# description above. Betas stay off it.
+[downloads]
