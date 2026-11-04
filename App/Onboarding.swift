@@ -118,8 +118,8 @@ struct OnboardingView: View {
                 }
                 Divider().padding(.leading, 52)
                 Step(number: 5, done: model.playVideos && !VideoPicker.sources(model.videoLinks).isEmpty,
-                     title: "A YouTube video instead of a chime?",
-                     detail: "Paste a video, playlist or channel and alerts play one, with sound. Add more, or "
+                     title: "A video instead of a chime?",
+                     detail: "Paste a YouTube video, playlist or channel and alerts play one, with sound. Add more, or "
                         + "random ones from ytroulette.com, in Settings. Optional.") {
                     TextField("youtube.com/watch?v=…", text: $videoLink)
                         .textFieldStyle(.roundedBorder)

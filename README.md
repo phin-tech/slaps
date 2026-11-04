@@ -23,6 +23,9 @@ leaving the rest usable. A banner doesn't take the keyboard from what you're typ
   containing words you list.
 - **Reminders:** optionally, reminders with a due time (or only high-priority ones) get an alert at that time, with
   Mark Done.
+- **A video instead of a chime:** optionally, each alert plays a random YouTube video, with sound: from videos,
+  playlists and channels you list, or from [ytroulette.com](https://ytroulette.com) in a category you pick (its picks
+  aren't screened). The next one is fetched ahead of time, so an alert never waits for it.
 - **Low battery:** optionally, an alert when a MacBook's battery runs down to a level you pick (5–50%), once each time,
   in the same style and theme. Plugging in takes it away.
 - **Per-event overrides:** from an event's ⋯ menu, no alert or a different lead time, for that occurrence or every
