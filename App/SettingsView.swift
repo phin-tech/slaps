@@ -55,6 +55,19 @@ private struct GeneralSettings: View {
                 }
                 Button("Show a Test Alert") { model.testAlert() }
             }
+            if BatteryMonitor.hasBattery {
+                Section {
+                    Toggle("Alert me when the battery is low", isOn: $model.batteryAlerts)
+                    Picker("At", selection: $model.batteryLevel) {
+                        ForEach([5, 10, 15, 20, 25, 30, 40, 50], id: \.self) { Text("\($0)%").tag($0) }
+                    }
+                    .disabled(!model.batteryAlerts)
+                } footer: {
+                    Text("Once each time it runs down to that level on battery, in the style and theme above. "
+                        + "Plugging in takes it away.")
+                        .foregroundStyle(.secondary)
+                }
+            }
             Section {
                 Toggle("Hold alerts while I share my screen", isOn: $model.pauseWhileSharing)
             } footer: {

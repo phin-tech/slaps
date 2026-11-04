@@ -106,6 +106,8 @@ enum PrefKey {
     static let alertStyle = "alertStyle"
     static let customBackground = "customBackground"
     static let customAccent = "customAccent"
+    static let batteryAlerts = "batteryAlerts"
+    static let batteryLevel = "batteryLevel"
 }
 
 extension UserDefaults {

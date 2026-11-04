@@ -23,6 +23,8 @@ leaving the rest usable. A banner doesn't take the keyboard from what you're typ
   containing words you list.
 - **Reminders:** optionally, reminders with a due time (or only high-priority ones) get an alert at that time, with
   Mark Done.
+- **Low battery:** optionally, an alert when a MacBook's battery runs down to a level you pick (5–50%), once each time,
+  in the same style and theme. Plugging in takes it away.
 - **Per-event overrides:** from an event's ⋯ menu, no alert or a different lead time, for that occurrence or every
   occurrence of a repeating event.
 - **Screen sharing:** alerts are held back while Zoom, Teams, Webex or Slack shares your screen (it spots the border

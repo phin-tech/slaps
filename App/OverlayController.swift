@@ -206,7 +206,8 @@ struct AlertView: View {
 
     private func details(_ m: Meeting) -> String {
         if m.kind == .custom {
-            return [m.notes, "From \(m.calendarTitle)"].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "  ·  ")
+            let from = m.calendarTitle.isEmpty ? nil : "From \(m.calendarTitle)"
+            return [m.notes, from].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "  ·  ")
         }
         if m.kind == .reminder {
             return ["Due \(m.start.formatted(date: .omitted, time: .shortened))", m.calendarTitle]
@@ -220,6 +221,7 @@ struct AlertView: View {
     private func countdown(for m: Meeting, now: Date) -> String {
         let s = Int(m.start.timeIntervalSince(now).rounded())
         if m.kind == .reminder { return s > 0 ? String(format: "Reminder in %d:%02d", s / 60, s % 60) : "Reminder" }
+        if BatteryWatch.isAlert(m) { return "Low battery" }
         if m.kind == .custom { return s > 0 ? String(format: "In %d:%02d", s / 60, s % 60) : "Now" }
         if s > 0 { return String(format: "Starts in %d:%02d", s / 60, s % 60) }
         if s > -60 { return "Starting now" }

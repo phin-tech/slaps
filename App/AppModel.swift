@@ -81,6 +81,26 @@ final class AppModel {
     }
     private(set) var overrides: Overrides { didSet { defaults.overrides = overrides } }
     private(set) var pausedUntil: Date? { didSet { defaults.set(pausedUntil, forKey: PrefKey.pausedUntil) } }
+    /// An alert when the battery runs down to `batteryLevel` percent, off power.
+    var batteryAlerts: Bool {
+        didSet {
+            defaults.set(batteryAlerts, forKey: PrefKey.batteryAlerts)
+            batteryWatch = BatteryWatch(level: batteryLevel)
+            checkBattery()
+        }
+    }
+    var batteryLevel: Int {
+        didSet {
+            defaults.set(batteryLevel, forKey: PrefKey.batteryLevel)
+            batteryWatch.level = batteryLevel
+            checkBattery()
+        }
+    }
+    @ObservationIgnored private var batteryWatch: BatteryWatch
+    #if DEBUG
+    /// A made-up reading from the debug driver (`just debug battery 15`), in place of the real battery.
+    @ObservationIgnored var simulatedBattery: BatteryReading? { didSet { checkBattery() } }
+    #endif
 
     private init() {
         leadTime = defaults.object(forKey: PrefKey.leadTime) as? Double ?? 60
@@ -98,6 +118,10 @@ final class AppModel {
         hotKeysEnabled = defaults.object(forKey: PrefKey.hotKeys) as? Bool ?? true
         overrides = defaults.overrides
         pausedUntil = defaults.object(forKey: PrefKey.pausedUntil) as? Date
+        batteryAlerts = defaults.bool(forKey: PrefKey.batteryAlerts)
+        let level = defaults.object(forKey: PrefKey.batteryLevel) as? Int ?? 20
+        batteryLevel = level
+        batteryWatch = BatteryWatch(level: level)
     }
 
     var schedule: AlertSchedule { AlertSchedule(leadTime: leadTime) }
@@ -126,6 +150,8 @@ final class AppModel {
             MainActor.assumeIsolated { AppModel.shared.fetch() }
         }
         updateHotKeys()
+        BatteryMonitor.observe { AppModel.shared.checkBattery() }
+        checkBattery()
         Task {
             // The first time, the welcome window asks, with an explanation; after that, ask if still unanswered.
             if OnboardingController.isDone && calendar.access == .notAsked { _ = await calendar.requestAccess() }
@@ -258,6 +284,31 @@ final class AppModel {
     /// Whether `meeting` will get an alert at all, by the filter and its override.
     func alerts(for meeting: Meeting) -> Bool {
         filter.allows(meeting) && overrides.override(for: meeting) != .skip
+    }
+
+    // MARK: Battery
+
+    /// Puts up the low-battery alert, or takes it down once the Mac is plugged in.
+    func checkBattery() {
+        guard batteryAlerts else {
+            customAlerts.removeAll(where: BatteryWatch.isAlert)
+            return tick()
+        }
+        var reading = BatteryMonitor.read()
+        #if DEBUG
+        if let simulatedBattery { reading = simulatedBattery }
+        #endif
+        switch batteryWatch.update(reading) {
+        case .none: return
+        case .clear:
+            guard customAlerts.contains(where: BatteryWatch.isAlert) else { return }
+            customAlerts.removeAll(where: BatteryWatch.isAlert)
+        case .warn:
+            guard let reading else { return }
+            customAlerts.removeAll(where: BatteryWatch.isAlert)
+            customAlerts.append(BatteryWatch.alert(for: reading, at: Date()))
+        }
+        tick()
     }
 
     // MARK: Other apps

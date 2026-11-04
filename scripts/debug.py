@@ -24,6 +24,8 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
   onboarding                 open the welcome window
   state                      what the app thinks is alerting
   hotkeys                    how many global shortcuts are registered
+  battery <percent> [power]  pretend the battery is at <percent> (and plugged in), turning battery alerts on
+  battery real               back to the real battery
   sharing                    whether screen sharing is detected
   dismiss                    dismiss the alert that is up
   quit                       quit this copy of the app
@@ -42,6 +44,12 @@ def request(argv):
         return {"command": "style", "style": args[0] if args else ""}
     if command == "alert":
         return {"command": "alert", "reminder": args[:1] == ["reminder"]}
+    if command == "battery":
+        if args[:1] == ["real"]:
+            return {"command": "battery", "real": True}
+        if not args or not args[0].isdigit():
+            sys.exit("battery needs a percentage, or real")
+        return {"command": "battery", "percent": int(args[0]), "power": "power" in args[1:], "enable": True}
     if command in ("ping", "windows", "dismiss", "popover", "onboarding", "hotkeys", "sharing", "state", "quit"):
         return {"command": command}
     if command == "snapshot":

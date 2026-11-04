@@ -95,6 +95,16 @@ final class DebugDriver {
         case "state":
             let m = AppModel.shared
             return "alerting: \(m.alerting.map(\.title)); upcoming: \(m.upcoming.count); paused: \(m.isPaused)"
+        case "battery":
+            // A made-up reading: battery <percent> [power], or battery real to go back to the real one.
+            if request["real"] as? Bool == true {
+                AppModel.shared.simulatedBattery = nil
+                return "the real battery: \(BatteryMonitor.read().map { "\($0.percent)%, \($0.onPower ? "on power" : "on battery")" } ?? "none")"
+            }
+            guard let percent = request["percent"] as? Int else { throw DebugError("battery needs a percentage") }
+            if request["enable"] as? Bool == true { AppModel.shared.batteryAlerts = true }
+            AppModel.shared.simulatedBattery = BatteryReading(percent: percent, onPower: request["power"] as? Bool ?? false)
+            return "battery \(percent)%\(request["power"] as? Bool == true ? " on power" : "")"
         case "sharing":
             return ScreenShare.isSharing() ? "sharing detected" : "not sharing"
         case "dismiss":
@@ -110,7 +120,7 @@ final class DebugDriver {
             }
             return "quitting"
         default:
-            throw DebugError("unknown command '\(command)' (ping, windows, snapshot, menu, alert, dismiss, popover, style, theme, onboarding, hotkeys, sharing, state, quit)")
+            throw DebugError("unknown command '\(command)' (ping, windows, snapshot, menu, alert, dismiss, popover, style, theme, onboarding, hotkeys, battery, sharing, state, quit)")
         }
     }
 
