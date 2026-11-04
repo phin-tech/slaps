@@ -25,7 +25,7 @@ final class OnboardingController: NSObject, NSWindowDelegate {
 
     func show() {
         if window == nil {
-            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 600),
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 680),
                              styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
             w.titlebarAppearsTransparent = true
             w.titleVisibility = .hidden
@@ -63,6 +63,7 @@ struct OnboardingView: View {
     @State private var openAtLogin = LoginItem.isEnabled
     @State private var loginError: String?
     @State private var triedAlert = false
+    @State private var videoLink = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -116,7 +117,22 @@ struct OnboardingView: View {
                         }
                 }
                 Divider().padding(.leading, 52)
-                Step(number: 5, done: triedAlert, title: "See what an alert looks like",
+                Step(number: 5, done: model.playVideos && !VideoPicker.sources(model.videoLinks).isEmpty,
+                     title: "A YouTube video instead of a chime?",
+                     detail: "Paste a video, playlist or channel and alerts play one, with sound. Add more, or "
+                        + "random ones from ytroulette.com, in Settings. Optional.") {
+                    TextField("youtube.com/watch?v=…", text: $videoLink)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 170)
+                        .onChange(of: videoLink) { _, link in
+                            guard VideoSource(link: link) != nil else { return }
+                            let trimmed = link.trimmingCharacters(in: .whitespacesAndNewlines)
+                            model.videoLinks = [trimmed] + model.videoLinks.filter { $0 != trimmed && !$0.isEmpty }
+                            model.playVideos = true
+                        }
+                }
+                Divider().padding(.leading, 52)
+                Step(number: 6, done: triedAlert, title: "See what an alert looks like",
                      detail: "Press Escape or Dismiss to close it.") {
                     Button("Show a Test Alert") {
                         triedAlert = true
@@ -140,7 +156,7 @@ struct OnboardingView: View {
             .padding(.horizontal, 28)
             .padding(.bottom, 24)
         }
-        .frame(width: 520, height: 600)
+        .frame(width: 520, height: 680)
         // Back from System Settings with access granted, the checklist should say so.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             model.fetch()

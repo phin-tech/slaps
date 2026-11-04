@@ -26,6 +26,9 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
   hotkeys                    how many global shortcuts are registered
   battery <percent> [power]  pretend the battery is at <percent> (and plugged in), turning battery alerts on
   battery real               back to the real battery
+  videos <link>... | off     play one of these YouTube links at random in each alert, or stop
+  videos roulette [category] a random one from ytroulette.com (funny, music, gaming, sports, trailers, allyoutube)
+  video                      whether the alert's video is playing
   sharing                    whether screen sharing is detected
   dismiss                    dismiss the alert that is up
   quit                       quit this copy of the app
@@ -44,6 +47,10 @@ def request(argv):
         return {"command": "style", "style": args[0] if args else ""}
     if command == "alert":
         return {"command": "alert", "reminder": args[:1] == ["reminder"]}
+    if command == "videos":
+        return {"command": "videos", "links": [] if args[:1] == ["off"] else args}
+    if command == "video":
+        return {"command": "video"}
     if command == "battery":
         if args[:1] == ["real"]:
             return {"command": "battery", "real": True}

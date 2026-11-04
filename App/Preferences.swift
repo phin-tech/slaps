@@ -108,6 +108,10 @@ enum PrefKey {
     static let customAccent = "customAccent"
     static let batteryAlerts = "batteryAlerts"
     static let batteryLevel = "batteryLevel"
+    static let playVideos = "playVideos"
+    static let videoLinks = "videoLinks"
+    static let videoMode = "videoMode"
+    static let rouletteCategory = "rouletteCategory"
 }
 
 extension UserDefaults {

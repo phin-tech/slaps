@@ -95,6 +95,7 @@ final class DebugDriver {
         case "state":
             let m = AppModel.shared
             return "alerting: \(m.alerting.map(\.title)); upcoming: \(m.upcoming.count); paused: \(m.isPaused)"
+                + "; video: \(m.alertVideo?.id ?? "none")"
         case "battery":
             // A made-up reading: battery <percent> [power], or battery real to go back to the real one.
             if request["real"] as? Bool == true {
@@ -105,6 +106,35 @@ final class DebugDriver {
             if request["enable"] as? Bool == true { AppModel.shared.batteryAlerts = true }
             AppModel.shared.simulatedBattery = BatteryReading(percent: percent, onPower: request["power"] as? Bool ?? false)
             return "battery \(percent)%\(request["power"] as? Bool == true ? " on power" : "")"
+        case "videos":
+            // videos <link>…: play one of these at random in each alert; videos off: stop.
+            let links = request["links"] as? [String] ?? []
+            if links.first == "roulette" {
+                AppModel.shared.rouletteCategory = links.count > 1 ? links[1] : "funny"
+                AppModel.shared.videoMode = .roulette
+                AppModel.shared.playVideos = true
+                return "ytroulette, \(AppModel.shared.rouletteCategory)"
+            }
+            AppModel.shared.playVideos = !links.isEmpty
+            if !links.isEmpty {
+                AppModel.shared.videoMode = .links
+                AppModel.shared.videoLinks = links
+            }
+            return links.isEmpty ? "videos off" : "\(links.count) video link(s)"
+        case "video":
+            // What the alert's video player is doing, from inside its page.
+            guard let web = AlertVideoView.current else { return "no video" }
+            let script = """
+            (() => { const v = document.querySelector('video');
+              const err = document.querySelector('.ytp-error-content-wrap-reason, .ytp-error');
+              return JSON.stringify(v ? {playing: !v.paused, time: Math.round(v.currentTime * 10) / 10, muted: v.muted, volume: v.volume}
+                                      : {error: err ? err.innerText : document.body.innerText.slice(0, 200)}); })()
+            """
+            var result: String?
+            web.evaluateJavaScript(script) { value, error in result = (value as? String) ?? error.map { "\($0)" } ?? "nothing" }
+            let deadline = Date().addingTimeInterval(5)
+            while result == nil, Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+            return "\(web.url?.absoluteString ?? "")\n\(result ?? "no answer")"
         case "sharing":
             return ScreenShare.isSharing() ? "sharing detected" : "not sharing"
         case "dismiss":
@@ -120,7 +150,7 @@ final class DebugDriver {
             }
             return "quitting"
         default:
-            throw DebugError("unknown command '\(command)' (ping, windows, snapshot, menu, alert, dismiss, popover, style, theme, onboarding, hotkeys, battery, sharing, state, quit)")
+            throw DebugError("unknown command '\(command)' (ping, windows, snapshot, menu, alert, dismiss, popover, style, theme, onboarding, hotkeys, battery, videos, video, sharing, state, quit)")
         }
     }
 

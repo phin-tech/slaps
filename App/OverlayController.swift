@@ -101,6 +101,11 @@ struct AlertView: View {
                     Text(details(first))
                         .font(.title2)
                         .opacity(0.75)
+                    if isMainScreen, let video = model.alertVideo {
+                        AlertVideoView(video: video)
+                            .frame(width: 640, height: 360)
+                            .clipShape(.rect(cornerRadius: 12))
+                    }
                     if model.alerting.count > 1 {
                         VStack(spacing: 6) {
                             Text("Also now").font(.headline).opacity(0.6)
@@ -150,6 +155,12 @@ struct AlertView: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 24)
+            if isMainScreen, let video = model.alertVideo {
+                AlertVideoView(video: video)
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .clipShape(.rect(cornerRadius: 8))
+                    .padding(.vertical, 18)
+            }
             if isMainScreen { buttons(first, theme: theme) }
         }
         .foregroundStyle(theme.foreground)

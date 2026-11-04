@@ -24,6 +24,17 @@ private struct GeneralSettings: View {
     @AppStorage(UpdateChecker.betaKey) private var betaUpdates = UpdateChecker.runningBeta
     #endif
 
+    private var linksSummary: String {
+        let sources = VideoPicker.sources(model.videoLinks)
+        guard !sources.isEmpty else { return "Paste YouTube videos, playlists or channels, one a line." }
+        let videos = sources.filter { if case .video = $0 { true } else { false } }.count
+        let lists = sources.count - videos
+        var parts: [String] = []
+        if videos > 0 { parts.append("\(videos) video\(videos == 1 ? "" : "s")") }
+        if lists > 0 { parts.append("\(lists) playlist\(lists == 1 ? "" : "s") or channel\(lists == 1 ? "" : "s") (their newest videos)") }
+        return parts.joined(separator: " and ") + " to pick from."
+    }
+
     var body: some View {
         Form {
             Section("Alert") {
@@ -54,6 +65,32 @@ private struct GeneralSettings: View {
                         supportsOpacity: false)
                 }
                 Button("Show a Test Alert") { model.testAlert() }
+            }
+            Section {
+                Toggle("Play a random YouTube video with each alert", isOn: $model.playVideos)
+                if model.playVideos {
+                    Picker("From", selection: $model.videoMode) {
+                        ForEach(VideoMode.allCases) { Text($0.name).tag($0) }
+                    }
+                    if model.videoMode == .roulette {
+                        Picker("Category", selection: $model.rouletteCategory) {
+                            ForEach(Roulette.categories, id: \.self) { Text(Roulette.name(of: $0)).tag($0) }
+                        }
+                        Text("A random video from ytroulette.com, fetched ahead of time. Nobody checks what it "
+                            + "picks, so anything can turn up, more so under Anything. If it doesn't answer, one "
+                            + "from your links below plays instead.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    TextEditor(text: Binding(
+                        get: { model.videoLinks.joined(separator: "\n") },
+                        set: { model.videoLinks = $0.components(separatedBy: .newlines) }))
+                        .font(.callout.monospaced())
+                        .frame(height: 90)
+                    Text(linksSummary).font(.caption).foregroundStyle(.secondary)
+                }
+            } footer: {
+                Text("It plays in the alert, with sound, in place of the alert sound, and stops when you dismiss it.")
+                    .foregroundStyle(.secondary)
             }
             if BatteryMonitor.hasBattery {
                 Section {

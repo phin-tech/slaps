@@ -97,6 +97,21 @@ final class AppModel {
         }
     }
     @ObservationIgnored private var batteryWatch: BatteryWatch
+    /// Play one of `videoLinks`, at random, in each alert.
+    var playVideos: Bool { didSet { defaults.set(playVideos, forKey: PrefKey.playVideos); prepareVideo() } }
+    /// YouTube links, as pasted: videos, playlists and channels. The rest are skipped.
+    var videoLinks: [String] { didSet { defaults.set(videoLinks, forKey: PrefKey.videoLinks); prepareVideo() } }
+    var videoMode: VideoMode { didSet { defaults.set(videoMode.rawValue, forKey: PrefKey.videoMode); prepareVideo() } }
+    /// ytroulette's category (Roulette.categories).
+    var rouletteCategory: String {
+        didSet { defaults.set(rouletteCategory, forKey: PrefKey.rouletteCategory); prepareVideo() }
+    }
+    @ObservationIgnored private let videoPicker = VideoPicker()
+    private var videoSettings: VideoPicker.Settings {
+        VideoPicker.Settings(links: videoLinks, mode: videoMode, category: rouletteCategory)
+    }
+    /// The video the alert that's up is playing, picked when it went up.
+    private(set) var alertVideo: YouTubeVideo?
     #if DEBUG
     /// A made-up reading from the debug driver (`just debug battery 15`), in place of the real battery.
     @ObservationIgnored var simulatedBattery: BatteryReading? { didSet { checkBattery() } }
@@ -122,6 +137,11 @@ final class AppModel {
         let level = defaults.object(forKey: PrefKey.batteryLevel) as? Int ?? 20
         batteryLevel = level
         batteryWatch = BatteryWatch(level: level)
+        playVideos = defaults.bool(forKey: PrefKey.playVideos)
+        videoLinks = defaults.stringArray(forKey: PrefKey.videoLinks) ?? []
+        videoMode = defaults.string(forKey: PrefKey.videoMode).flatMap(VideoMode.init(rawValue:)) ?? .links
+        rouletteCategory = defaults.string(forKey: PrefKey.rouletteCategory)
+            .flatMap { Roulette.categories.contains($0) ? $0 : nil } ?? "funny"
     }
 
     var schedule: AlertSchedule { AlertSchedule(leadTime: leadTime) }
@@ -152,6 +172,7 @@ final class AppModel {
         updateHotKeys()
         BatteryMonitor.observe { AppModel.shared.checkBattery() }
         checkBattery()
+        prepareVideo()
         Task {
             // The first time, the welcome window asks, with an explanation; after that, ask if still unanswered.
             if OnboardingController.isDone && calendar.access == .notAsked { _ = await calendar.requestAccess() }
@@ -243,10 +264,12 @@ final class AppModel {
         let isNew = !Set(due.map(\.id)).isSubset(of: Set(alerting.map(\.id)))
         alerting = due
         if alerting.isEmpty {
+            alertVideo = nil
             overlay.hide()
         } else {
+            if isNew { alertVideo = playVideos ? videoPicker.take(videoSettings) : nil }
             overlay.show(alertStyle)
-            if isNew { AlertSound.play(sound) }
+            if isNew && alertVideo == nil { AlertSound.play(sound) }   // a video brings its own
         }
     }
 
@@ -284,6 +307,11 @@ final class AppModel {
     /// Whether `meeting` will get an alert at all, by the filter and its override.
     func alerts(for meeting: Meeting) -> Bool {
         filter.allows(meeting) && overrides.override(for: meeting) != .skip
+    }
+
+    /// Gets the next alert's video ready, from the network if need be, so the alert doesn't wait for it.
+    private func prepareVideo() {
+        if playVideos { videoPicker.refill(videoSettings) }
     }
 
     // MARK: Battery
