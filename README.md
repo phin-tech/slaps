@@ -53,9 +53,18 @@ leaving the rest usable. A banner doesn't take the keyboard from what you're typ
 
 ## Install
 
-Slaps needs macOS 14 or later. There's no release to download yet, so build it with Xcode 26.6 or later,
-[xcodegen](https://github.com/yonaskolb/XcodeGen), [just](https://just.systems) and [uv](https://docs.astral.sh/uv/)
-(`brew install xcodegen just uv`):
+Slaps needs macOS 14 or later. Download it from [apps.phin.tech](https://apps.phin.tech)
+([the latest zip](https://apps.phin.tech/Slaps/latest.zip)) or the
+[GitHub releases](https://github.com/phin-tech/slaps/releases/latest), unzip it, and move Slaps to Applications. It's
+notarized by Apple, so it opens without a warning, and it updates itself (Settings › General › Updates).
+
+Slaps lives in the menu bar, with no Dock icon. On first launch the welcome window walks through calendar access and
+the rest; quit it from the popover's ⏻ button.
+
+### From source
+
+Build it with Xcode 26.6 or later, [xcodegen](https://github.com/yonaskolb/XcodeGen), [just](https://just.systems)
+and [uv](https://docs.astral.sh/uv/) (`brew install xcodegen just uv`):
 
 ```sh
 git clone https://github.com/phin-tech/slaps.git && cd slaps
@@ -69,9 +78,6 @@ after every install.
 
 `just install` runs [app-release](https://git.phin.tech/sam/app-release), which is private. Without access to it,
 `just run` builds a Debug copy and opens it from Xcode's build folder.
-
-Slaps lives in the menu bar, with no Dock icon. On first launch the welcome window walks through calendar access and
-the rest; quit it from the popover's ⏻ button.
 
 ## Other apps
 

@@ -32,7 +32,9 @@ compiled into Debug builds and only listens when the app is launched with `DEBUG
 
 **One command:** `just ship patch` (or `minor`, `major`, `beta`). It bumps the version (`just bump`), commits and
 pushes to `main`, builds the app headless, signs it with the Developer ID Application certificate, notarizes it with
-Apple and staples the ticket (`just notarize`), then publishes the GitHub release, its Sparkle appcast (`just release`). Write `release-notes/<next version>.md` first for curated notes: `just notes patch` (or `minor`, `beta --of patch`, …) drafts it with a cheap model on OpenRouter from the commits since the last release, to read and edit. It must run on a Mac
+Apple and staples the ticket (`just notarize`), then publishes the GitHub release, its Sparkle appcast, and the zip on the download page,
+[apps.phin.tech](https://apps.phin.tech) (`just release`; `[downloads]` in `release.toml`, where the page's line
+comes from `description`; betas stay off it). Write `release-notes/<next version>.md` first for curated notes: `just notes patch` (or `minor`, `beta --of patch`, …) drafts it with a cheap model on OpenRouter from the commits since the last release, to read and edit. It must run on a Mac
 with the certificate in its keychain, from a clean, pushed `main`. Every release recipe takes `--dry-run`, which runs
 the checks and reads but only prints what it would change: `just ship beta --dry-run`.
 
@@ -70,8 +72,9 @@ The steps by hand, if one fails halfway:
    xcodebuild's full output.
 3. `just release` (or `just release <path to Slaps.app>`; with no argument it takes the newest notarized app):
    checks it is a stapled, notarized Developer ID build of the version in `project.yml` and that `main` is clean and
-   pushed, then publishes `Slaps-<version>.zip` as a GitHub release tagged `v<version>`. Then it makes the
-   appcast (`just appcast` redoes that).
+   pushed, then publishes `Slaps-<version>.zip` as a GitHub release tagged `v<version>` and puts it on
+   apps.phin.tech, as `Slaps/Slaps-<version>.zip` and `Slaps/latest.zip`. Then it makes the appcast (`just appcast`
+   redoes that).
 
 ## Updates
 
@@ -85,7 +88,7 @@ Sparkle's tools are downloaded, pinned, into `~/Library/Caches/app-release`. Deb
 
 ## First release
 
-Once, before the first `just ship`:
+Done: 0.2.0 was the first, on 2026-11-03. For the record, once, before the first `just ship`:
 
 1. `just bootstrap`: creates the GitHub repository `phin-tech/slaps` (public: Sparkle and Homebrew download the
    release zips without credentials), pushes `main` to it, and runs `just doctor`, which checks `gh`,
