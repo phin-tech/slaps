@@ -20,6 +20,8 @@ private struct GeneralSettings: View {
     @Bindable var model: AppModel
     @State private var openAtLogin = LoginItem.isEnabled
     @State private var loginError: String?
+    @State private var cliInstalled = CommandLineLink.isInstalled
+    @State private var cliTrouble: String?
     #if !APP_STORE
     @AppStorage(UpdateChecker.betaKey) private var betaUpdates = UpdateChecker.runningBeta
     #endif
@@ -115,9 +117,20 @@ private struct GeneralSettings: View {
             }
             Section {
                 Toggle("Allow other apps to put up alerts and pause Slaps", isOn: $model.allowExternal)
+                LabeledContent("Command line") {
+                    Button(cliInstalled ? "Installed in ~/.local/bin" : "Install slaps in ~/.local/bin") {
+                        cliTrouble = CommandLineLink.install()
+                        cliInstalled = CommandLineLink.isInstalled
+                    }
+                    .disabled(cliInstalled)
+                }
+                if let cliTrouble {
+                    Text(cliTrouble).foregroundStyle(.red)
+                }
             } footer: {
-                Text("With slaps:// links, like open \"slaps://alert?title=Deploy%20done&in=5\", or AppleScript: "
-                    + "tell application \"Slaps\" to show alert \"Deploy done\". See the README for the rest.")
+                Text("With slaps:// links, like open \"slaps://alert?title=Deploy%20done&in=5\", AppleScript: "
+                    + "tell application \"Slaps\" to show alert \"Deploy done\", or the command line: "
+                    + "slaps alert \"Deploy done\" --in 5 (slaps help lists the rest).")
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }

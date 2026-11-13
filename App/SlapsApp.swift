@@ -1,6 +1,50 @@
+import SlapsKit
 import SwiftUI
 
+/// The command line first: `slaps alert …` runs here and exits, before any of the app starts. Through the `slaps`
+/// link everything is the command line, so a mistake is said rather than opening the app; the app's own binary takes
+/// only the command words, since Launch Services starts it with arguments of its own.
 @main
+enum Main {
+    static func main() {
+        let arguments = Array(CommandLine.arguments.dropFirst())
+        let asSlaps = URL(fileURLWithPath: CommandLine.arguments.first ?? "").lastPathComponent == "slaps"
+        if asSlaps {
+            exit(CommandLineTool.run(arguments.isEmpty ? ["help"] : arguments))
+        }
+        if let first = arguments.first, SlapsCommandLine.commands.contains(first.lowercased()) {
+            exit(CommandLineTool.run(arguments))
+        }
+        SlapsApp.main()
+    }
+}
+
+/// `slaps` in a terminal: the app's own binary, through a link to it (Settings › General, or `just install-cli`).
+enum CommandLineTool {
+    static func run(_ arguments: [String]) -> Int32 {
+        do {
+            guard let url = try SlapsCommandLine.url(for: arguments) else {
+                print(SlapsCommandLine.help)
+                return 0
+            }
+            // To whichever Slaps macOS opens slaps:// URLs with, in the background, starting it if it isn't running.
+            let open = Process()
+            open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            open.arguments = ["-g", url.absoluteString]
+            try open.run()
+            open.waitUntilExit()
+            guard open.terminationStatus == 0 else {
+                FileHandle.standardError.write(Data("slaps: macOS couldn't open \(url.absoluteString)\n".utf8))
+                return 1
+            }
+            return 0
+        } catch {
+            FileHandle.standardError.write(Data("slaps: \(error)\n".utf8))
+            return 2
+        }
+    }
+}
+
 struct SlapsApp: App {
     @NSApplicationDelegateAdaptor private var delegate: AppDelegate
 

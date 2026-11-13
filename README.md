@@ -128,6 +128,20 @@ Anyone can send an alert, so its link and buttons open only web pages or an app 
 (`ExternalAlert.apps`: Boiler Room's `boiler-room:` for now), whose button
 names it: Open in Boiler Room.
 
+### The command line
+
+Settings › General › Command line puts `slaps` in `~/.local/bin` (or `just install-cli`): the app's own binary,
+which says what's wrong in the terminal rather than in the log.
+
+```sh
+slaps alert "Deploy done" --in 5 --link https://ci.example.com/run/42 --from CI
+slaps alert "Rotate the key?" --id q3 --style side --action Yes --action No \
+    --callback 'boiler-room://answer?question=3&answer={action}'
+slaps dismiss --id q3
+slaps pause --minutes 30
+slaps help
+```
+
 `at` takes ISO 8601 (a time without a zone is local). An alert from another app is at most a week ahead, says where
 it came from, and only takes an `http` or `https` link, whose site its button names, or one of those apps'. A URL that can't be run is noted
 in the log (`log stream --process Slaps`); AppleScript gets the reason as an error. These alerts aren't kept if Slaps

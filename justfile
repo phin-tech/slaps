@@ -15,6 +15,11 @@ gen:
 build: gen
     xcodebuild -project Slaps.xcodeproj -scheme Slaps build
 
+# Link slaps in ~/.local/bin to the app in /Applications, as Settings › General does
+install-cli:
+    mkdir -p ~/.local/bin && ln -sf /Applications/Slaps.app/Contents/MacOS/Slaps ~/.local/bin/slaps
+    @echo "slaps is in ~/.local/bin; try: slaps help"
+
 # Build and launch the app
 run: build
     open "$(xcodebuild -project Slaps.xcodeproj -scheme Slaps -showBuildSettings 2>/dev/null | awk '/ BUILT_PRODUCTS_DIR /{print $3}')/Slaps.app"
