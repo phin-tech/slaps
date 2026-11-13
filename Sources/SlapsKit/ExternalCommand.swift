@@ -48,7 +48,7 @@ public enum ExternalCommand: Equatable, Sendable {
             }
             let style = try value("style").map { name -> AlertStyle in
                 guard let style = AlertStyle(external: name) else {
-                    throw Failure("style= is fullscreen, banner, top or bottom")
+                    throw Failure("style= is fullscreen, banner, top, bottom or side")
                 }
                 return style
             }
@@ -100,12 +100,13 @@ public struct ExternalAction: Hashable, Sendable {
 }
 
 extension AlertStyle {
-    /// As another app names it: `fullscreen`, `banner` (the top), `top` or `bottom`.
+    /// As another app names it: `fullscreen`, `banner` (the top), `top`, `bottom` or `side` (a card).
     public init?(external name: String) {
         switch name.lowercased() {
         case "fullscreen", "full-screen", "full": self = .fullScreen
         case "banner", "top": self = .top
         case "bottom": self = .bottom
+        case "side", "card": self = .side
         default: return nil
         }
     }

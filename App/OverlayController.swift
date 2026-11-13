@@ -3,7 +3,7 @@ import SlapsKit
 import SwiftUI
 
 /// The alert: a borderless panel over everything on every screen, in every Space and over full-screen apps; all of
-/// each screen, or a banner across its top or bottom (`AlertStyle`).
+/// each screen, a banner across its top or bottom, or a card at the side of the main one (`AlertStyle`).
 @MainActor
 final class OverlayController {
     private var panels: [NSPanel] = []
@@ -28,10 +28,11 @@ final class OverlayController {
         guard panels.isEmpty else { return }
         self.style = style
         let main = NSScreen.main ?? NSScreen.screens.first
-        for screen in NSScreen.screens {
+        let screens = style.onEveryScreen ? NSScreen.screens : [main].compactMap { $0 }
+        for screen in screens {
             let frame = style.frame(screen: screen.frame, visible: screen.visibleFrame)
             // A banner doesn't activate Slaps when clicked, so whatever you're typing in keeps the keyboard.
-            let mask: NSWindow.StyleMask = style.isBanner ? [.borderless, .nonactivatingPanel] : [.borderless]
+            let mask: NSWindow.StyleMask = style.takesKeyboard ? [.borderless] : [.borderless, .nonactivatingPanel]
             let panel = OverlayPanel(contentRect: frame, styleMask: mask, backing: .buffered, defer: false)
             panel.level = .screenSaver
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
@@ -43,19 +44,19 @@ final class OverlayController {
             panel.title = "Slaps alert"
             // Kept out of screen sharing and recordings where macOS honours it, in case one starts mid-alert.
             panel.sharingType = .none
-            panel.hasShadow = style.isBanner
+            panel.hasShadow = !style.takesKeyboard
             panel.contentView = NSHostingView(rootView: AlertView(model: .shared, isMainScreen: screen == main,
                                                                   style: style))
             panel.setFrame(frame, display: true)
             panels.append(panel)
-            if screen == main && !style.isBanner {
+            if screen == main && style.takesKeyboard {
                 panel.makeKeyAndOrderFront(nil)   // the one that takes Return and Escape
             } else {
                 panel.orderFrontRegardless()
             }
         }
         // Full screen takes the keyboard on purpose; a banner leaves it where it was (⌃⌥⌘J and ⌃⌥⌘D still work).
-        if !style.isBanner { NSApp.activate() }
+        if style.takesKeyboard { NSApp.activate() }
     }
 
     func hide() {
@@ -84,7 +85,9 @@ struct AlertView: View {
             LinearGradient(colors: theme.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
                 .opacity(0.97)
                 .ignoresSafeArea()
-            if let first = model.alerting.first, style.isBanner {
+            if let first = model.alerting.first, style == .side {
+                card(first, theme: theme)
+            } else if let first = model.alerting.first, style.isBanner {
                 banner(first, theme: theme)
             } else if let first = model.alerting.first {
                 VStack(spacing: 28) {
@@ -127,6 +130,8 @@ struct AlertView: View {
                 .frame(maxWidth: 1100)
             }
         }
+        // The side card is a card: rounded, with the window's shadow around it.
+        .clipShape(.rect(cornerRadius: style == .side ? 18 : 0))
         .task {
             try? await Task.sleep(for: .seconds(1.5))
             keysArmed = true
@@ -171,37 +176,64 @@ struct AlertView: View {
         }
     }
 
-    @ViewBuilder private func buttons(_ first: Meeting, theme: Palette) -> some View {
-        HStack(spacing: 16) {
+    /// A card in the corner: what's due, what it is, and its buttons, small enough to sit beside your work.
+    private func card(_ first: Meeting, theme: Palette) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(countdown(for: first, now: context.date))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(theme.accent)
+            }
+            Text(first.title)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .lineLimit(2)
+                .minimumScaleFactor(0.6)
+            Text(details(first) + (model.alerting.count > 1 ? "  ·  and \(model.alerting.count - 1) more" : ""))
+                .font(.callout)
+                .opacity(0.75)
+                .lineLimit(2)
+            Spacer(minLength: 8)
+            buttons(first, theme: theme, compact: true)
+        }
+        .foregroundStyle(theme.foreground)
+        .padding(22)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder private func buttons(_ first: Meeting, theme: Palette, compact: Bool = false) -> some View {
+        // Compact, in the side card: no minimum widths, and smaller type and padding, so they fit its width.
+        let wide: CGFloat = compact ? 0 : 220
+        let narrow: CGFloat = compact ? 0 : 120
+        HStack(spacing: compact ? 8 : 16) {
             if first.kind == .custom, !first.actions.isEmpty {
                 // The sending app's answers; the first is Return's. Snooze and Dismiss still follow.
                 ForEach(Array(first.actions.enumerated()), id: \.offset) { index, action in
                     Button { model.answer(action, on: first) } label: {
-                        Text(action.title).frame(minWidth: 120)
+                        Text(action.title).frame(minWidth: narrow)
                     }
-                    .buttonStyle(AlertButtonStyle(fill: index == 0 ? theme.accent : theme.foreground.opacity(0.15),
+                    .buttonStyle(AlertButtonStyle(compact: compact, fill: index == 0 ? theme.accent : theme.foreground.opacity(0.15),
                                                   text: index == 0 ? theme.onAccent : theme.foreground))
                     .keyboardShortcut(key(index == 0 ? .defaultAction : nil))
                 }
             } else if first.kind == .reminder {
                 Button { model.complete(first) } label: {
-                    Label("Mark Done", systemImage: "checkmark.circle.fill").frame(minWidth: 220)
+                    Label("Mark Done", systemImage: "checkmark.circle.fill").frame(minWidth: wide)
                 }
-                .buttonStyle(AlertButtonStyle(fill: theme.accent, text: theme.onAccent))
+                .buttonStyle(AlertButtonStyle(compact: compact, fill: theme.accent, text: theme.onAccent))
                 .keyboardShortcut(key(.defaultAction))
             } else if first.kind == .custom, first.link == nil, let url = first.url {
                 // Not a call we know: say where it goes, since anyone can send one.
                 Button { model.join(first) } label: {
                     Label(ExternalAlert.app(for: url).map { "Open in \($0)" } ?? "Open \(url.host ?? "Link")",
-                          systemImage: "arrow.up.right.square.fill").frame(minWidth: 220)
+                          systemImage: "arrow.up.right.square.fill").frame(minWidth: wide)
                 }
-                .buttonStyle(AlertButtonStyle(fill: theme.accent, text: theme.onAccent))
+                .buttonStyle(AlertButtonStyle(compact: compact, fill: theme.accent, text: theme.onAccent))
                 .keyboardShortcut(key(.defaultAction))
             } else if let link = first.link {
                 Button { model.join(first) } label: {
-                    Label("Join \(link.service)", systemImage: "video.fill").frame(minWidth: 220)
+                    Label("Join \(link.service)", systemImage: "video.fill").frame(minWidth: wide)
                 }
-                .buttonStyle(AlertButtonStyle(fill: theme.accent, text: theme.onAccent))
+                .buttonStyle(AlertButtonStyle(compact: compact, fill: theme.accent, text: theme.onAccent))
                 .keyboardShortcut(key(.defaultAction))
             }
             Menu("Snooze") {
@@ -213,16 +245,16 @@ struct AlertView: View {
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
-            .padding(.horizontal, 22).padding(.vertical, 12)
+            .padding(.horizontal, compact ? 14 : 22).padding(.vertical, compact ? 8 : 12)
             .background(theme.foreground.opacity(0.15), in: .capsule)
             Button { model.dismiss(model.alerting) } label: {
-                Text("Dismiss").frame(minWidth: 120)
+                Text("Dismiss").frame(minWidth: narrow)
             }
-            .buttonStyle(AlertButtonStyle(fill: theme.foreground.opacity(0.15), text: theme.foreground))
+            .buttonStyle(AlertButtonStyle(compact: compact, fill: theme.foreground.opacity(0.15), text: theme.foreground))
             .keyboardShortcut(key(first.link == nil && first.url == nil && first.kind != .reminder
                                   && first.actions.isEmpty ? .defaultAction : nil))
         }
-        .font(.title3.weight(.semibold))
+        .font(compact ? .body.weight(.semibold) : .title3.weight(.semibold))
         // Escape always dismisses, even when Dismiss is the default button.
         .background(Button("") { model.dismiss(model.alerting) }.keyboardShortcut(key(.cancelAction)).hidden())
     }
@@ -255,12 +287,13 @@ struct AlertView: View {
 /// Bold, and the same whether or not the window is active: system styles fade in an inactive window, and an alert
 /// should never look like it is.
 private struct AlertButtonStyle: ButtonStyle {
+    var compact = false
     var fill: Color
     var text: Color
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .padding(.horizontal, 22).padding(.vertical, 12)
+            .padding(.horizontal, compact ? 14 : 22).padding(.vertical, compact ? 8 : 12)
             .foregroundStyle(text)
             .background(fill, in: .capsule)
             .opacity(configuration.isPressed ? 0.75 : 1)

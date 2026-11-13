@@ -22,6 +22,15 @@ private let visible = CGRect(x: 0, y: 70, width: 1710, height: 1005)
     #expect(f == CGRect(x: 0, y: 0, width: 1710, height: 222))
 }
 
+@Test func sideCardIsInTheTopRightUnderTheMenuBar() {
+    let f = AlertStyle.side.frame(screen: screen, visible: visible)
+    #expect(f.size == AlertStyle.cardSize)
+    #expect(f.maxX == visible.maxX - AlertStyle.cardMargin)
+    #expect(f.maxY == visible.maxY - AlertStyle.cardMargin)
+    #expect(!AlertStyle.side.takesKeyboard && !AlertStyle.side.onEveryScreen && !AlertStyle.side.isBanner)
+    #expect(AlertStyle(external: "side") == .side)
+}
+
 @Test func bannersKeepAMinimumHeightAndFollowTheScreen() {
     let small = CGRect(x: -1280, y: 200, width: 1280, height: 720)
     let f = AlertStyle.top.frame(screen: small, visible: small)

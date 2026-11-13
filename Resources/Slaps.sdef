@@ -31,7 +31,7 @@
                 <cocoa key="key"/>
             </parameter>
             <parameter name="style" code="SLst" type="text" optional="yes"
-                       description="fullscreen, banner (the top), top or bottom, over the setting.">
+                       description="fullscreen, banner (the top), top, bottom or side (a card), over the setting.">
                 <cocoa key="style"/>
             </parameter>
         </command>

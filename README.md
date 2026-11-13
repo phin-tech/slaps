@@ -10,8 +10,9 @@ dismisses, or snooze it for 1 or 5 minutes or until it starts. Optionally, an al
 when the meeting starts.
 
 Or, if a whole screen is too much, a **banner** across the top or bottom fifth of each screen, above everything but
-leaving the rest usable. A banner doesn't take the keyboard from what you're typing in; click its buttons, or use
-⌃⌥⌘J and ⌃⌥⌘D.
+leaving the rest usable, or a **card at the side**: the top right of the main screen, under the menu bar, like a
+notification that stays. Neither takes the keyboard from what you're typing in; click its buttons, or use ⌃⌥⌘J and
+⌃⌥⌘D.
 
 ![The same alert as a banner across the top of the screen, in custom red and yellow](docs/screenshots/banner.png)
 
@@ -113,7 +114,7 @@ end tell
 ```
 
 An alert sent again with the same `id` takes the old one's place, and goes up again even if that one was dismissed.
-`style` is `fullscreen`, `banner` (the top), `top` or `bottom`, over the setting, for that alert only.
+`style` is `fullscreen`, `banner` (the top), `top`, `bottom` or `side`, over the setting, for that alert only.
 
 An alert can be answered from its buttons: `actions` lists up to three, and `callback` is the URL each opens, with
 `{action}` where its words go, encoded as one value:

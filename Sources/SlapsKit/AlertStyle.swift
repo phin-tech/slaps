@@ -8,6 +8,8 @@ public enum AlertStyle: String, CaseIterable, Identifiable, Sendable {
     case top
     /// A band across the bottom.
     case bottom
+    /// A card in the top right of the main screen, under the menu bar, as a notification is, but larger and staying.
+    case side
 
     public var id: Self { self }
 
@@ -16,10 +18,20 @@ public enum AlertStyle: String, CaseIterable, Identifiable, Sendable {
         case .fullScreen: "Full screen"
         case .top: "Banner at the top"
         case .bottom: "Banner at the bottom"
+        case .side: "Card at the side"
         }
     }
 
-    public var isBanner: Bool { self != .fullScreen }
+    /// A band across a screen.
+    public var isBanner: Bool { self == .top || self == .bottom }
+    /// Whether it takes the keyboard from what you're typing in. Only full screen does; the rest leave it be.
+    public var takesKeyboard: Bool { self == .fullScreen }
+    /// On every screen, or only the main one.
+    public var onEveryScreen: Bool { self != .side }
+
+    /// The side card's size, and how far it sits from the screen's edge and the menu bar.
+    public static let cardSize = CGSize(width: 440, height: 220)
+    public static let cardMargin: CGFloat = 12
 
     /// The share of the screen's height a banner takes.
     public static let bannerShare: CGFloat = 0.2
@@ -38,6 +50,10 @@ public enum AlertStyle: String, CaseIterable, Identifiable, Sendable {
             return CGRect(x: screen.minX, y: visible.maxY - height, width: screen.width, height: height)
         case .bottom:
             return CGRect(x: screen.minX, y: screen.minY, width: screen.width, height: height)
+        case .side:
+            let size = Self.cardSize
+            return CGRect(x: visible.maxX - size.width - Self.cardMargin,
+                          y: visible.maxY - size.height - Self.cardMargin, width: size.width, height: size.height)
         }
     }
 }

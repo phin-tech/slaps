@@ -47,7 +47,7 @@ final class SlapsShowAlertCommand: NSScriptCommand {
             else if let minutes = (args["minutes"] as? NSNumber)?.doubleValue { at = now.addingTimeInterval(minutes * 60) }
             let style = try (args["style"] as? String).map { name -> AlertStyle in
                 guard let style = AlertStyle(external: name) else {
-                    throw ExternalCommand.Failure("style is fullscreen, banner, top or bottom")
+                    throw ExternalCommand.Failure("style is fullscreen, banner, top, bottom or side")
                 }
                 return style
             }
