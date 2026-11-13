@@ -206,7 +206,20 @@ struct AlertView: View {
         let narrow: CGFloat = compact ? 0 : 120
         HStack(spacing: compact ? 8 : 16) {
             if first.kind == .custom, !first.actions.isEmpty {
-                // The sending app's answers; the first is Return's. Snooze and Dismiss still follow.
+                // Its link first, to go and do what it asks, leaving the alert up; then the sending app's answers,
+                // the first of them Return's. Snooze and Dismiss still follow.
+                if let url = first.url {
+                    Button { model.open(url) } label: {
+                        // The card has room for one word; the banner names where it goes.
+                        let place = ExternalAlert.app(for: url).map { "Open in \($0)" } ?? "Open \(url.host ?? "Link")"
+                        Label(compact ? "Open" : place, systemImage: "arrow.up.right.square")
+                            .lineLimit(1)
+                            .frame(minWidth: narrow)
+                    }
+                    .help(url.absoluteString)
+                    .buttonStyle(AlertButtonStyle(compact: compact, fill: theme.foreground.opacity(0.15),
+                                                  text: theme.foreground))
+                }
                 ForEach(Array(first.actions.enumerated()), id: \.offset) { index, action in
                     Button { model.answer(action, on: first) } label: {
                         Text(action.title).frame(minWidth: narrow)

@@ -381,6 +381,11 @@ final class AppModel {
         finish([meeting])
     }
 
+    /// Opens an alert's link and leaves the alert up, for one whose answer comes after: open the page, then Done.
+    func open(_ url: URL) {
+        NSWorkspace.shared.open(url)
+    }
+
     /// One of an alert's buttons from another app: opens that app's URL with the answer, and it's done.
     func answer(_ action: ExternalAction, on meeting: Meeting) {
         NSWorkspace.shared.open(action.url)

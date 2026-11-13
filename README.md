@@ -116,7 +116,8 @@ end tell
 An alert sent again with the same `id` takes the old one's place, and goes up again even if that one was dismissed.
 `style` is `fullscreen`, `banner` (the top), `top`, `bottom` or `side`, over the setting, for that alert only.
 
-An alert can be answered from its buttons: `actions` lists up to three, and `callback` is the URL each opens, with
+An alert can be answered from its buttons: `actions` lists up to three (beside its `link`, if it has one, which
+opens without answering), and `callback` is the URL each opens, with
 `{action}` where its words go, encoded as one value:
 
 ```sh
