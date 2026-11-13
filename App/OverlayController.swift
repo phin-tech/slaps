@@ -173,7 +173,17 @@ struct AlertView: View {
 
     @ViewBuilder private func buttons(_ first: Meeting, theme: Palette) -> some View {
         HStack(spacing: 16) {
-            if first.kind == .reminder {
+            if first.kind == .custom, !first.actions.isEmpty {
+                // The sending app's answers; the first is Return's. Snooze and Dismiss still follow.
+                ForEach(Array(first.actions.enumerated()), id: \.offset) { index, action in
+                    Button { model.answer(action, on: first) } label: {
+                        Text(action.title).frame(minWidth: 120)
+                    }
+                    .buttonStyle(AlertButtonStyle(fill: index == 0 ? theme.accent : theme.foreground.opacity(0.15),
+                                                  text: index == 0 ? theme.onAccent : theme.foreground))
+                    .keyboardShortcut(key(index == 0 ? .defaultAction : nil))
+                }
+            } else if first.kind == .reminder {
                 Button { model.complete(first) } label: {
                     Label("Mark Done", systemImage: "checkmark.circle.fill").frame(minWidth: 220)
                 }
@@ -182,7 +192,8 @@ struct AlertView: View {
             } else if first.kind == .custom, first.link == nil, let url = first.url {
                 // Not a call we know: say where it goes, since anyone can send one.
                 Button { model.join(first) } label: {
-                    Label("Open \(url.host ?? "Link")", systemImage: "arrow.up.right.square.fill").frame(minWidth: 220)
+                    Label(ExternalAlert.app(for: url).map { "Open in \($0)" } ?? "Open \(url.host ?? "Link")",
+                          systemImage: "arrow.up.right.square.fill").frame(minWidth: 220)
                 }
                 .buttonStyle(AlertButtonStyle(fill: theme.accent, text: theme.onAccent))
                 .keyboardShortcut(key(.defaultAction))
@@ -208,7 +219,8 @@ struct AlertView: View {
                 Text("Dismiss").frame(minWidth: 120)
             }
             .buttonStyle(AlertButtonStyle(fill: theme.foreground.opacity(0.15), text: theme.foreground))
-            .keyboardShortcut(key(first.link == nil && first.url == nil && first.kind != .reminder ? .defaultAction : nil))
+            .keyboardShortcut(key(first.link == nil && first.url == nil && first.kind != .reminder
+                                  && first.actions.isEmpty ? .defaultAction : nil))
         }
         .font(.title3.weight(.semibold))
         // Escape always dismisses, even when Dismiss is the default button.

@@ -34,7 +34,7 @@ enum URLCommands {
 // The commands in Resources/Slaps.sdef. Cocoa scripting runs them on the main thread; a failure is returned to the
 // script as an error.
 
-/// show alert "Deploy done" [in minutes 5 | at date] [link "https://…"] [notes "…"] [from "…"]
+/// show alert "Deploy done" [in minutes 5 | at date] [link "https://…"] [notes "…"] [from "…"] [id "…"] [style "banner"]
 @objc(SlapsShowAlertCommand)
 final class SlapsShowAlertCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -45,9 +45,16 @@ final class SlapsShowAlertCommand: NSScriptCommand {
             var at = now
             if let date = args["date"] as? Date { at = date }
             else if let minutes = (args["minutes"] as? NSNumber)?.doubleValue { at = now.addingTimeInterval(minutes * 60) }
+            let style = try (args["style"] as? String).map { name -> AlertStyle in
+                guard let style = AlertStyle(external: name) else {
+                    throw ExternalCommand.Failure("style is fullscreen, banner, top or bottom")
+                }
+                return style
+            }
             return try .alert(ExternalAlert(title: title, at: at, link: args["link"] as? String,
                                             notes: args["notes"] as? String,
-                                            source: args["source"] as? String ?? "AppleScript", now: now))
+                                            source: args["source"] as? String ?? "AppleScript",
+                                            key: args["key"] as? String, style: style, now: now))
         }
     }
 }
@@ -70,9 +77,16 @@ final class SlapsResumeCommand: NSScriptCommand {
     override func performDefaultImplementation() -> Any? { run { .resume } }
 }
 
+/// dismiss alert [id "…"]: the one on screen, or the one sent with that id, up or not.
 @objc(SlapsDismissCommand)
 final class SlapsDismissCommand: NSScriptCommand {
-    override func performDefaultImplementation() -> Any? { run { .dismiss } }
+    override func performDefaultImplementation() -> Any? {
+        let key = evaluatedArguments?["key"] as? String
+        return run {
+            guard let key else { return .dismiss }
+            return .withdraw(try ExternalAlert.checkedKey(key))
+        }
+    }
 }
 
 @objc(SlapsJoinCommand)

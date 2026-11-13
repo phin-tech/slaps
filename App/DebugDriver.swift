@@ -66,6 +66,13 @@ final class DebugDriver {
         case "alert":
             AppModel.shared.testAlert(reminder: request["reminder"] as? Bool ?? false)
             return "test alert up"
+        case "url":
+            // A slaps:// URL, to this copy only; `open` would reach whichever Slaps Launch Services picks.
+            guard let text = request["url"] as? String, let url = URL(string: text) else {
+                throw DebugError("url needs a slaps:// URL")
+            }
+            try AppModel.shared.perform(ExternalCommand.parse(url, now: Date()))
+            return "ran \(text)"
         case "hotkeys":
             return "\(AppModel.shared.hotKeysRegistered) of \(HotKeys.Action.allCases.count) shortcuts registered"
         case "popover":

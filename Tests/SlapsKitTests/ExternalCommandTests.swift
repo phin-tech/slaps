@@ -47,6 +47,14 @@ private func alert(_ s: String) throws -> ExternalAlert {
     "slaps://alert?title=x&link=file:///etc/passwd",       // only web links
     "slaps://alert?title=x&link=zoommtg://zoom.us/join",
     "slaps://alert?title=x&link=https://",
+    "slaps://alert?title=x&link=shortcuts://run",           // an app that isn't trusted to answer
+    "slaps://alert?title=x&actions=Yes",                    // no callback
+    "slaps://alert?title=x&actions=Yes&callback=boiler-room://answer",   // no {action}
+    "slaps://alert?title=x&actions=Yes&callback=shortcuts%3A%2F%2Frun%3Fname%3D%7Baction%7D",
+    "slaps://alert?title=x&actions=A,B,C,D&callback=boiler-room%3A%2F%2Fa%3Fx%3D%7Baction%7D",
+    "slaps://alert?title=x&style=huge",
+    "slaps://alert?title=x&id=no%20spaces",
+    "slaps://dismiss?id=../etc",
     "slaps://pause?minutes=0",
     "slaps://explode",
     "https://example.com/alert?title=x",
@@ -60,6 +68,7 @@ func rejects(_ s: String) {
     #expect(try parse("slaps://pause?minutes=30") == .pause(1800))
     #expect(try parse("slaps://RESUME") == .resume)
     #expect(try parse("slaps://dismiss") == .dismiss)
+    #expect(try parse("slaps://dismiss?id=run-42") == .withdraw("run-42"))
     #expect(try parse("slaps://join") == .join)
 }
 
@@ -70,4 +79,35 @@ func rejects(_ s: String) {
     let m = try ExternalAlert(title: "Deploy", at: now.addingTimeInterval(120), now: now).meeting(id: "x")
     #expect(f.allows(m))
     #expect(AlertSchedule(leadTime: 600).fireDate(for: m, state: AlertState()) == m.start)
+}
+
+@Test func anAlertsButtonsAnswerTheAppThatSentItWithTheirWords() throws {
+    let a = try alert("slaps://alert?title=Rotate%20the%20key%3F&id=q3&style=banner&actions=Yes,Not%20now"
+                      // The callback is one value, encoded as a whole, as a sender's URL library does.
+                      + "&callback=boiler-room%3A%2F%2Fanswer%3Fquestion%3D3%26answer%3D%7Baction%7D"
+                      + "&source=Boiler%20Room")
+    #expect(a.key == "q3")
+    #expect(a.style == .top)
+    #expect(a.actions.map(\.title) == ["Yes", "Not now"])
+    #expect(a.actions.map(\.url.absoluteString)
+            == ["boiler-room://answer?question=3&answer=Yes", "boiler-room://answer?question=3&answer=Not%20now"])
+    let m = a.meeting(id: ExternalAlert.meetingID(key: "q3"))
+    #expect(m.id == "custom-q3")
+    #expect(m.actions == a.actions)
+    #expect(m.style == .top)
+}
+
+@Test func anAlertsLinkMayOpenAnAppThatAnswersAlerts() throws {
+    let a = try alert("slaps://alert?title=Run%2042%20failed&link=boiler-room://run/42&style=fullscreen")
+    #expect(a.link?.absoluteString == "boiler-room://run/42")
+    #expect(a.style == .fullScreen)
+    #expect(ExternalAlert.app(for: a.link!) == "Boiler Room")
+    #expect(ExternalAlert.app(for: URL(string: "https://example.com")!) == nil)
+}
+
+@Test func anAlertSentAgainIsForgottenSoItGoesUpAgain() {
+    var state = AlertState()
+    state.dismiss("custom-q3")
+    state.forget("custom-q3")
+    #expect(!state.dismissed.contains("custom-q3"))
 }

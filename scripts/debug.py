@@ -20,6 +20,7 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
   alert [reminder]           put up a test alert, of a meeting or a reminder (windows lists it first)
   popover                    click the menu bar item, opening or closing the popover
   style fullScreen|top|bottom  how much of the screen alerts take
+  url slaps://…                 run a slaps:// URL in this copy only, as another app would
   theme midnight|ember|forest|paper|custom   the alert's colours
   onboarding                 open the welcome window
   state                      what the app thinks is alerting
@@ -45,6 +46,8 @@ def request(argv):
         return {"command": "theme", "theme": args[0] if args else ""}
     if command == "style":
         return {"command": "style", "style": args[0] if args else ""}
+    if command == "url":
+        return {"command": "url", "url": args[0] if args else ""}
     if command == "alert":
         return {"command": "alert", "reminder": args[:1] == ["reminder"]}
     if command == "videos":

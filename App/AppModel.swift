@@ -60,7 +60,7 @@ final class AppModel {
     var alertStyle: AlertStyle {
         didSet {
             defaults.set(alertStyle.rawValue, forKey: PrefKey.alertStyle)
-            if !alerting.isEmpty { overlay.show(alertStyle) }   // an alert that's up changes shape
+            if !alerting.isEmpty { overlay.show(shownStyle) }   // an alert that's up changes shape
         }
     }
     var showDateInMenuBar: Bool { didSet { defaults.set(showDateInMenuBar, forKey: PrefKey.showDate) } }
@@ -145,6 +145,9 @@ final class AppModel {
     }
 
     var schedule: AlertSchedule { AlertSchedule(leadTime: leadTime) }
+
+    /// The style of the alert that's up: its own, if the app that sent it asked for one, or the setting.
+    var shownStyle: AlertStyle { alerting.first?.style ?? alertStyle }
 
     /// Meetings and reminders that pass the filter and haven't ended, soonest first. A reminder stays until it's done.
     var upcoming: [Meeting] {
@@ -268,7 +271,7 @@ final class AppModel {
             overlay.hide()
         } else {
             if isNew { alertVideo = playVideos ? videoPicker.take(videoSettings) : nil }
-            overlay.show(alertStyle)
+            overlay.show(shownStyle)
             if isNew && alertVideo == nil { AlertSound.play(sound) }   // a video brings its own
         }
     }
@@ -348,7 +351,15 @@ final class AppModel {
         }
         switch command {
         case .alert(let alert):
-            customAlerts.append(alert.meeting(id: "custom-\(UUID().uuidString)"))
+            // Sent again with the same id, it takes the old one's place, and goes up even if that one was dismissed.
+            let id = alert.key.map { ExternalAlert.meetingID(key: $0) } ?? "custom-\(UUID().uuidString)"
+            customAlerts.removeAll { $0.id == id }
+            state.forget(id)
+            customAlerts.append(alert.meeting(id: id))
+            tick()
+        case .withdraw(let key):
+            let id = ExternalAlert.meetingID(key: key)
+            customAlerts.removeAll { $0.id == id }
             tick()
         case .pause(let interval): pause(for: interval)
         case .resume: resume()
@@ -367,6 +378,12 @@ final class AppModel {
 
     func join(_ meeting: Meeting) {
         if let url = meeting.link?.url ?? (meeting.kind == .custom ? meeting.url : nil) { NSWorkspace.shared.open(url) }
+        finish([meeting])
+    }
+
+    /// One of an alert's buttons from another app: opens that app's URL with the answer, and it's done.
+    func answer(_ action: ExternalAction, on meeting: Meeting) {
+        NSWorkspace.shared.open(action.url)
         finish([meeting])
     }
 

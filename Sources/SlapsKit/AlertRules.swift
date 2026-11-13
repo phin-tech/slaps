@@ -73,6 +73,12 @@ public struct AlertState: Equatable, Sendable {
         snoozed[id] = until
     }
 
+    /// Forgets one alert, as when another app sends it again in its place.
+    public mutating func forget(_ id: String) {
+        dismissed.remove(id)
+        snoozed[id] = nil
+    }
+
     /// Forgets meetings that are no longer in the calendar window, so the state doesn't grow forever.
     public mutating func keepOnly(_ ids: Set<String>) {
         dismissed.formIntersection(ids)

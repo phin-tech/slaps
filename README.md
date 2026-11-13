@@ -93,7 +93,9 @@ open -g "slaps://alert?title=Standup&in=5&link=https://zoom.us/j/123"         # 
 open -g "slaps://alert?title=Call%20Mum&at=2026-11-03T18:00:00Z&source=Script" # at a time; source= says who asked
 open -g "slaps://pause?minutes=30"     # pause (default an hour)
 open -g "slaps://resume"
+open -g "slaps://alert?title=Build%20failed&id=ci-42&style=banner"         # an id, and a style of its own
 open -g "slaps://dismiss"              # the alert on screen
+open -g "slaps://dismiss?id=ci-42"     # the one sent with that id, up or still to come
 open -g "slaps://join"                 # the alert's call, or a meeting under way or within 10 minutes
 ```
 
@@ -103,13 +105,29 @@ tell application "Slaps"
     show alert "Call Mum" at date "Tuesday, 3 November 2026 at 18:00"
     pause alerts for minutes 30
     resume alerts
+    show alert "Build failed" id "ci-42" style "banner"
     dismiss alert
+    dismiss alert id "ci-42"
     join meeting
 end tell
 ```
 
+An alert sent again with the same `id` takes the old one's place, and goes up again even if that one was dismissed.
+`style` is `fullscreen`, `banner` (the top), `top` or `bottom`, over the setting, for that alert only.
+
+An alert can be answered from its buttons: `actions` lists up to three, and `callback` is the URL each opens, with
+`{action}` where its words go, encoded as one value:
+
+```sh
+open -g "slaps://alert?title=Rotate%20the%20key%3F&actions=Yes,No&callback=boiler-room%3A%2F%2Fanswer%3Fquestion%3D3%26answer%3D%7Baction%7D"
+```
+
+Anyone can send an alert, so its link and buttons open only web pages or an app Slaps knows answers alerts
+(`ExternalAlert.apps`: Boiler Room's `boiler-room:` for now), whose button
+names it: Open in Boiler Room.
+
 `at` takes ISO 8601 (a time without a zone is local). An alert from another app is at most a week ahead, says where
-it came from, and only takes an `http` or `https` link, whose site its button names. A URL that can't be run is noted
+it came from, and only takes an `http` or `https` link, whose site its button names, or one of those apps'. A URL that can't be run is noted
 in the log (`log stream --process Slaps`); AppleScript gets the reason as an error. These alerts aren't kept if Slaps
 quits.
 

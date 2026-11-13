@@ -16,7 +16,7 @@
                 <cocoa key="date"/>
             </parameter>
             <parameter name="link" code="SLlk" type="text" optional="yes"
-                       description="An http or https link for the alert's button, like a call to join.">
+                       description="An http or https link for the alert's button, like a call to join, or a boiler-room: one.">
                 <cocoa key="link"/>
             </parameter>
             <parameter name="notes" code="SLnt" type="text" optional="yes" description="A line under the title.">
@@ -25,6 +25,14 @@
             <parameter name="from" code="SLsr" type="text" optional="yes"
                        description="Who's asking, shown on the alert (default: AppleScript).">
                 <cocoa key="source"/>
+            </parameter>
+            <parameter name="id" code="SLid" type="text" optional="yes"
+                       description="Your name for it: another with the same takes its place, and dismiss alert id takes it back.">
+                <cocoa key="key"/>
+            </parameter>
+            <parameter name="style" code="SLst" type="text" optional="yes"
+                       description="fullscreen, banner (the top), top or bottom, over the setting.">
+                <cocoa key="style"/>
             </parameter>
         </command>
         <command name="pause alerts" code="SLPSpaus" description="Pause alerts, for an hour unless told otherwise.">
@@ -36,8 +44,13 @@
         <command name="resume alerts" code="SLPSresm" description="Undo a pause.">
             <cocoa class="SlapsResumeCommand"/>
         </command>
-        <command name="dismiss alert" code="SLPSdism" description="Dismiss the alert on screen.">
+        <command name="dismiss alert" code="SLPSdism"
+                 description="Dismiss the alert on screen, or take back the one sent with an id.">
             <cocoa class="SlapsDismissCommand"/>
+            <parameter name="id" code="SLid" type="text" optional="yes"
+                       description="The id it was sent with; up or still to come.">
+                <cocoa key="key"/>
+            </parameter>
         </command>
         <command name="join meeting" code="SLPSjoin"
                  description="Join the call of the alert on screen, or of a meeting under way or starting within 10 minutes.">
