@@ -9,9 +9,9 @@ settings:
   base:
     # The release version (`just release` tags v<this>). `just bump` sets both. Project-wide, so anything embedded
     # in the app carries the app's version and build number.
-    MARKETING_VERSION: "0.3.0"
+    MARKETING_VERSION: "0.4.0"
     # The build number Sparkle and App Store Connect compare: it only ever goes up.
-    CURRENT_PROJECT_VERSION: "5"
+    CURRENT_PROJECT_VERSION: "6"
 packages:
   Slaps:
     path: .
