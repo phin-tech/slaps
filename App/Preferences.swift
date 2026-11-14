@@ -133,8 +133,7 @@ enum TabEdge: String, CaseIterable, Identifiable {
 /// Where on their edge Tabs stand, unless their sender says.
 typealias TabPosition = TabSlot
 
-extension TabSlot: Identifiable {
-    public var id: Self { self }
+extension TabSlot {
     var name: String { rawValue.capitalized }
 }
 

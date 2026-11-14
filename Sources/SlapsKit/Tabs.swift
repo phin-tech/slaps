@@ -31,8 +31,10 @@ public enum TabDeadline: Equatable, Sendable {
 }
 
 /// Where on the edge a Tab stands: its sender's choice, or the setting.
-public enum TabSlot: String, CaseIterable, Codable, Sendable {
+public enum TabSlot: String, CaseIterable, Codable, Sendable, Identifiable {
     case top, middle, bottom
+
+    public var id: Self { self }
 
     /// As another app writes it.
     public init(external text: String) throws {
