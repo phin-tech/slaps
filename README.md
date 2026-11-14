@@ -16,6 +16,11 @@ notification that stays. Neither takes the keyboard from what you're typing in; 
 
 ![The same alert as a banner across the top of the screen, in custom red and yellow](docs/screenshots/banner.png)
 
+- **Tabs:** other apps can leave a coloured tab on the edge of the screen, like a sticky note, which stays until you
+  dismiss it. Hover to slide it out, with its notes, link and buttons. Give it a deadline and, if it's still there
+  then, it goes up full screen; snooze that and it goes back on the edge. Tabs from the same app share a colour,
+  a sliver fills as the deadline nears, and they're kept across a restart. Right or left edge, top, middle or bottom,
+  an icon, a slim sliver or wide with its title, regular or mini; ⌃⌥⌘T opens them all to work from the keyboard.
 - **Calendars:** everything in macOS's Calendar app, through EventKit: iCloud, and Google, Microsoft 365 or Exchange
   accounts added in System Settings › Internet Accounts. Turn calendars on and off in Settings.
 - **Call links:** Zoom, Google Meet, Teams, Webex, FaceTime, Slack huddles, Whereby, Jitsi, Chime, GoTo and more, found
@@ -34,7 +39,7 @@ notification that stays. Neither takes the keyboard from what you're typing in; 
 - **Screen sharing:** alerts are held back while Zoom, Teams, Webex or Slack shares your screen (it spots the border
   they draw; a browser tab share isn't detected), and the alert is kept out of screen capture where macOS allows.
 - **Shortcuts from any app:** ⌃⌥⌘J joins the current or next meeting, ⌃⌥⌘D dismisses the alert, ⌃⌥⌘P pauses for an
-  hour or resumes. An alert ignores keys for its first 1.5 seconds, so typing elsewhere can't join or dismiss it.
+  hour or resumes, ⌃⌥⌘T opens the tabs; change any of them in Settings. An alert ignores keys for its first 1.5 seconds, so typing elsewhere can't join or dismiss it.
 - **Menu bar:** a month calendar with a dot on busy days, the chosen day's agenda with Join buttons, minutes to the
   next meeting (and the date, if you like), pause (30 min, 1 or 2 hours, until tomorrow) and a test alert.
 - **Settings:** lead time, full screen or a banner at the top or bottom, sound, theme (Midnight, Ember, Forest,
@@ -98,6 +103,7 @@ open -g "slaps://alert?title=Build%20failed&id=ci-42&style=banner"         # an 
 open -g "slaps://dismiss"              # the alert on screen
 open -g "slaps://dismiss?id=ci-42"     # the one sent with that id, up or still to come
 open -g "slaps://join"                 # the alert's call, or a meeting under way or within 10 minutes
+open -g "slaps://tab?title=Reply%20to%20Bob&deadline=30&source=Mail&id=bob"   # a tab, full screen in 30 minutes
 ```
 
 ```applescript
@@ -107,6 +113,7 @@ tell application "Slaps"
     pause alerts for minutes 30
     resume alerts
     show alert "Build failed" id "ci-42" style "banner"
+    show tab "Reply to Bob" slap in minutes 30 from "Mail" id "bob" color "teal"
     dismiss alert
     dismiss alert id "ci-42"
     join meeting
@@ -115,6 +122,17 @@ end tell
 
 An alert sent again with the same `id` takes the old one's place, and goes up again even if that one was dismissed.
 `style` is `fullscreen`, `banner` (the top), `top`, `bottom` or `side`, over the setting, for that alert only.
+
+A **tab** (`slaps://tab`, `show tab`, `slaps tab`) takes the same `link`, `notes`, `source`, `id`, `actions` and
+`callback` as an alert, plus `deadline`: minutes, an ISO 8601 time, or `never`. Without one it takes Settings' default,
+which is never unless you set one; past it, the tab goes up full screen. `color` is red, orange, yellow, green, mint,
+teal, cyan, blue, indigo, purple, pink, brown, gray or `#RRGGBB`; otherwise each `source` gets a colour of its own.
+`position` (`top`, `middle` or `bottom`) puts it in that place on the edge, over the setting; and tabs from one
+`source` with the same `group` stack up as one, with a count, which lists them when you hover over it
+(`slaps tab "#412 Fix login" --from GitHub --group reviews --position top`), neatly or, in Settings, in a messy
+pile. `icon` is an SF Symbol's name (`arrow.triangle.pull`) or an app's bundle id for its icon (`com.apple.mail`),
+shown in place of the initial and beside a stack's count. Tabs and alerts share ids: one sent with another's `id` takes its place, and `dismiss?id=` takes back either. A tab
+whose deadline passed while Slaps wasn't running comes back looking overdue rather than going up full screen.
 
 An alert can be answered from its buttons: `actions` lists up to three (beside its `link`, if it has one, which
 opens without answering), and `callback` is the URL each opens, with
@@ -138,6 +156,7 @@ slaps alert "Deploy done" --in 5 --link https://ci.example.com/run/42 --from CI
 slaps alert "Rotate the key?" --id q3 --style side --action Yes --action No \
     --callback 'boiler-room://answer?question=3&answer={action}'
 slaps dismiss --id q3
+slaps tab "Reply to Bob" --deadline 30 --color teal --from Mail --id bob
 slaps pause --minutes 30
 slaps help
 ```
@@ -145,7 +164,7 @@ slaps help
 `at` takes ISO 8601 (a time without a zone is local). An alert from another app is at most a week ahead, says where
 it came from, and only takes an `http` or `https` link, whose site its button names, or one of those apps'. A URL that can't be run is noted
 in the log (`log stream --process Slaps`); AppleScript gets the reason as an error. These alerts aren't kept if Slaps
-quits.
+quits; tabs are.
 
 ## Develop
 

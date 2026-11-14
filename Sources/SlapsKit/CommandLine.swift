@@ -6,25 +6,34 @@ import Foundation
 ///     slaps alert "Deploy done" --in 5 --link https://ci.example.com --from CI
 ///     slaps alert "Rotate the key?" --id q3 --style side --action Yes --action No \
 ///         --callback 'boiler-room://answer?question=3&answer={action}'
+///     slaps tab "Reply to Bob" --deadline 30 --color teal --from Mail --id bob
 ///     slaps dismiss [--id q3]      slaps pause [--minutes 30]      slaps resume      slaps join
 public enum SlapsCommandLine {
     /// The words the app's binary answers as a command line rather than opening the app.
-    public static let commands: Set<String> = ["alert", "dismiss", "pause", "resume", "join", "help", "--help", "-h"]
+    public static let commands: Set<String> = ["alert", "tab", "dismiss", "pause", "resume", "join", "help", "--help", "-h"]
 
     public static let help = """
-        slaps: put up a Slaps alert, or pause, resume or dismiss them, from a terminal or a script.
+        slaps: put up a Slaps alert or tab, or pause, resume or dismiss them, from a terminal or a script.
 
         Usage:
           slaps alert <title> [--in <minutes> | --at <time>] [--link <url>] [--notes <text>] [--from <who>]
                               [--id <id>] [--style fullscreen|banner|top|bottom|side]
                               [--action <words>]... [--callback <url with {action}>]
-          slaps dismiss [--id <id>]     the alert on screen, or the one sent with that id
+          slaps tab <title> [--deadline <minutes> | <time> | never] [--color <name or #RRGGBB>]
+                            [--position top|middle|bottom] [--group <name>]
+                            [--icon <SF Symbol name or app bundle id>]
+                            [--link <url>] [--notes <text>] [--from <who>] [--id <id>]
+                            [--action <words>]... [--callback <url with {action}>]
+          slaps dismiss [--id <id>]     the alert on screen, or the alert or tab sent with that id
           slaps pause [--minutes <n>]   an hour unless told
           slaps resume
           slaps join                    the alert's call, or a meeting under way or within 10 minutes
 
         --at takes ISO 8601 (2026-11-03T18:00, local, or with a zone). An alert sent again with the same --id takes
-        the old one's place. Each --action is a button that opens --callback with its words in place of {action}.
+        the old one's place, and a tab or alert shares its --id with the other. A tab stays on the edge of the
+        screen until dismissed; past its --deadline (Settings' default, none unless set) it goes up full screen.
+        Tabs from one --from with the same --group stack up as one; --position picks the place on the edge.
+        Colours: red, orange, yellow, green, mint, teal, cyan, blue, indigo, purple, pink, brown, gray. Each --action is a button that opens --callback with its words in place of {action}.
         Slaps has to allow other apps (Settings › General › Allow Other Apps).
         """
 
@@ -54,12 +63,19 @@ public enum SlapsCommandLine {
         switch command {
         case "help", "--help", "-h":
             return nil
-        case "alert":
-            guard let title = rest.first, !title.hasPrefix("--") else { throw Failure("alert needs a title") }
+        case "alert", "tab":
+            guard let title = rest.first, !title.hasPrefix("--") else { throw Failure("\(command) needs a title") }
             rest.removeFirst()
             items.append(URLQueryItem(name: "title", value: title))
-            try options(["--in": "in", "--at": "at", "--link": "link", "--notes": "notes", "--from": "source",
-                         "--id": "id", "--style": "style", "--action": "actions", "--callback": "callback"])
+            var known = ["--link": "link", "--notes": "notes", "--from": "source", "--id": "id",
+                         "--action": "actions", "--callback": "callback"]
+            if command == "alert" {
+                known.merge(["--in": "in", "--at": "at", "--style": "style"]) { a, _ in a }
+            } else {
+                known.merge(["--deadline": "deadline", "--color": "color", "--colour": "color",
+                             "--position": "position", "--group": "group", "--icon": "icon"]) { a, _ in a }
+            }
+            try options(known)
             if !items.contains(where: { $0.name == "source" }) {
                 items.append(URLQueryItem(name: "source", value: "Terminal"))
             }

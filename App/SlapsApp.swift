@@ -85,4 +85,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !OnboardingController.isDone && !demo { OnboardingController.shared.show() }
         }
     }
+
+    /// Opening Slaps again while it's running (from Applications, Spotlight or `open -a`) opens Settings, since a
+    /// menu bar app has no window to come back to. A slaps:// URL doesn't count, so other apps don't open it.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        MainActor.assumeIsolated {
+            NSApp.activate()
+            // The app menu's Settings… item (⌘,), which SwiftUI's Settings scene answers; sending its action
+            // directly finds no one to answer it in a menu bar app.
+            guard let appMenu = NSApp.mainMenu?.items.first?.submenu,
+                  let i = appMenu.items.firstIndex(where: { $0.keyEquivalent == "," }) else { return }
+            appMenu.performActionForItem(at: i)
+        }
+        return false
+    }
 }

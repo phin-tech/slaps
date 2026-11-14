@@ -39,6 +39,7 @@ struct ContentView: View {
                     .padding(8)
                     .background(.orange.opacity(0.2), in: .rect(cornerRadius: 6))
                 }
+                if !model.tabBoard.isEmpty { TabsSection(model: model) }
                 Text(dayTitle).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                 let items = model.agenda(for: selected)
                 if items.isEmpty {
@@ -92,6 +93,61 @@ struct ContentView: View {
         if cal.isDateInToday(selected) { return "Today · \(date)" }
         if cal.isDateInTomorrow(selected) { return "Tomorrow · \(date)" }
         return date
+    }
+}
+
+/// Every Tab, here too: the one place to see them while they're hidden for screen sharing, and to clear them out.
+private struct TabsSection: View {
+    let model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(model.tabsHidden ? "Tabs · hidden while you share" : "Tabs")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer()
+                Button("Dismiss All") { model.dismissAllTabs() }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(model.tabBoard.tabs) { tab in
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 1.5).fill(Color(tab.tint)).frame(width: 3, height: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(tab.title).lineLimit(1)
+                                Text(when(tab)).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if tab.link != nil {
+                                Button { model.openTab(tab) } label: { Image(systemName: "arrow.up.right.square") }
+                                    .buttonStyle(.borderless)
+                                    .help("Open its link")
+                            }
+                            Button { model.dismissTab(tab) } label: { Image(systemName: "xmark.circle") }
+                                .buttonStyle(.borderless)
+                                .help("Dismiss")
+                        }
+                    }
+                }
+            }
+            .fixedSize(horizontal: false, vertical: model.tabBoard.tabs.count <= 4)
+            .frame(height: model.tabBoard.tabs.count <= 4 ? nil : 150)
+            Divider()
+        }
+    }
+
+    private func when(_ tab: EdgeTab) -> String {
+        let deadline: String
+        if tab.isOverdue(at: model.now) {
+            deadline = "Overdue"
+        } else if let d = tab.deadline {
+            deadline = "Slaps at \(d.formatted(date: .omitted, time: .shortened))"
+        } else {
+            deadline = "No deadline"
+        }
+        return "\(tab.sourceName) · \(deadline)"
     }
 }
 

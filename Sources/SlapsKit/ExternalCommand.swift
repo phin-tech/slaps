@@ -13,6 +13,8 @@ import Foundation
 ///     slaps://join (the current or next meeting)
 public enum ExternalCommand: Equatable, Sendable {
     case alert(ExternalAlert)
+    /// A Tab on the edge of the screen, until dismissed (`slaps://tab?title=…&deadline=30`).
+    case tab(ExternalTab)
     case pause(TimeInterval)
     case resume
     case dismiss
@@ -58,6 +60,16 @@ public enum ExternalCommand: Equatable, Sendable {
             return .alert(try ExternalAlert(title: value("title") ?? "", at: date, link: value("link"),
                                             notes: value("notes"), source: value("source"), key: value("id"),
                                             style: style, actions: actions, callback: value("callback"), now: now))
+        case "tab":
+            let deadline = try value("deadline").map(TabDeadline.init(external:)) ?? .setting
+            let actions = value("actions").map {
+                $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            } ?? []
+            return .tab(try ExternalTab(title: value("title") ?? "", deadline: deadline, link: value("link"),
+                                        notes: value("notes"), source: value("source"), key: value("id"),
+                                        color: value("color"), actions: actions, callback: value("callback"),
+                                        position: try value("position").map(TabSlot.init(external:)),
+                                        group: value("group"), icon: value("icon"), now: now))
         case "pause":
             guard let minutes = value("minutes") else { return .pause(3600) }
             guard let m = Double(minutes), m > 0 else { throw Failure("minutes= must be a positive number") }
@@ -68,11 +80,11 @@ public enum ExternalCommand: Equatable, Sendable {
             return .withdraw(try ExternalAlert.checkedKey(id))
         case "join": return .join
         default:
-            throw Failure("unknown command '\(name)' (alert, pause, resume, dismiss, join)")
+            throw Failure("unknown command '\(name)' (alert, tab, pause, resume, dismiss, join)")
         }
     }
 
-    private static func parseDate(_ s: String) -> Date? {
+    static func parseDate(_ s: String) -> Date? {
         let full = ISO8601DateFormatter()
         if let d = full.date(from: s) { return d }
         full.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -89,7 +101,7 @@ public enum ExternalCommand: Equatable, Sendable {
 }
 
 /// A button on an alert from another app: its words, and the URL it opens, which answers that app.
-public struct ExternalAction: Hashable, Sendable {
+public struct ExternalAction: Hashable, Codable, Sendable {
     public var title: String
     public var url: URL
 
@@ -182,21 +194,26 @@ public struct ExternalAlert: Equatable, Sendable {
         self.source = source.map { String($0.prefix(60)) }
         self.key = try key.map(Self.checkedKey)
         self.style = style
+        self.actions = try Self.checkedActions(actions, callback: callback, what: "an alert")
+    }
+
+    /// Buttons from their words and the `callback` each opens, with `{action}` standing for its words; checked as
+    /// for any link, since anyone can send them.
+    static func checkedActions(_ actions: [String], callback: String?, what: String) throws -> [ExternalAction] {
         let words = actions.map { String($0.prefix(30)) }.filter { !$0.isEmpty }
         guard words.count <= Self.mostActions else {
-            throw ExternalCommand.Failure("an alert has at most \(Self.mostActions) actions")
+            throw ExternalCommand.Failure("\(what) has at most \(Self.mostActions) actions")
         }
-        if !words.isEmpty {
-            guard let callback else { throw ExternalCommand.Failure("actions= needs a callback= URL to open") }
-            guard callback.contains("{action}") else {
-                throw ExternalCommand.Failure("callback= has {action} where the chosen action goes")
-            }
-            self.actions = try words.map { word in
-                let filled = word.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? word
-                return ExternalAction(title: word,
-                                      url: try Self.allowed(callback.replacingOccurrences(of: "{action}", with: filled),
-                                                            "callback"))
-            }
+        guard !words.isEmpty else { return [] }
+        guard let callback else { throw ExternalCommand.Failure("actions= needs a callback= URL to open") }
+        guard callback.contains("{action}") else {
+            throw ExternalCommand.Failure("callback= has {action} where the chosen action goes")
+        }
+        return try words.map { word in
+            let filled = word.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? word
+            return ExternalAction(title: word,
+                                  url: try Self.allowed(callback.replacingOccurrences(of: "{action}", with: filled),
+                                                        "callback"))
         }
     }
 

@@ -35,6 +35,53 @@
                 <cocoa key="style"/>
             </parameter>
         </command>
+        <command name="show tab" code="SLPStabs"
+                 description="Leave a tab on the edge of the screen, until dismissed; past its deadline it goes up full screen.">
+            <cocoa class="SlapsShowTabCommand"/>
+            <direct-parameter type="text" description="The tab's title."/>
+            <parameter name="slap in minutes" code="SLdm" type="real" optional="yes"
+                       description="Its deadline, in minutes from now (default: the setting, which is never unless set).">
+                <cocoa key="minutes"/>
+            </parameter>
+            <parameter name="slap at" code="SLda" type="date" optional="yes" description="Its deadline, as a time.">
+                <cocoa key="date"/>
+            </parameter>
+            <parameter name="never slap" code="SLnv" type="boolean" optional="yes"
+                       description="No deadline, whatever the setting says.">
+                <cocoa key="never"/>
+            </parameter>
+            <parameter name="link" code="SLlk" type="text" optional="yes"
+                       description="An http or https link to open from it, or a boiler-room: one.">
+                <cocoa key="link"/>
+            </parameter>
+            <parameter name="notes" code="SLnt" type="text" optional="yes" description="A line under the title.">
+                <cocoa key="notes"/>
+            </parameter>
+            <parameter name="from" code="SLsr" type="text" optional="yes"
+                       description="Who's asking; tabs from the same source share a colour (default: AppleScript).">
+                <cocoa key="source"/>
+            </parameter>
+            <parameter name="id" code="SLid" type="text" optional="yes"
+                       description="Your name for it, shared with alerts: another with the same takes its place, and dismiss alert id takes it back.">
+                <cocoa key="key"/>
+            </parameter>
+            <parameter name="color" code="SLcl" type="text" optional="yes"
+                       description="red, orange, yellow, green, mint, teal, cyan, blue, indigo, purple, pink, brown, gray, or #RRGGBB, over its source's.">
+                <cocoa key="color"/>
+            </parameter>
+            <parameter name="position" code="SLps" type="text" optional="yes"
+                       description="top, middle or bottom: where on the edge, over the setting.">
+                <cocoa key="position"/>
+            </parameter>
+            <parameter name="group" code="SLgr" type="text" optional="yes"
+                       description="Tabs from the same source with the same group stack up as one (reviews).">
+                <cocoa key="group"/>
+            </parameter>
+            <parameter name="icon" code="SLic" type="text" optional="yes"
+                       description="An SF Symbol's name (envelope.fill), or an app's bundle id for its icon (com.github.GitHubClient).">
+                <cocoa key="icon"/>
+            </parameter>
+        </command>
         <command name="pause alerts" code="SLPSpaus" description="Pause alerts, for an hour unless told otherwise.">
             <cocoa class="SlapsPauseCommand"/>
             <parameter name="for minutes" code="SLmn" type="real" optional="yes" description="How long.">
@@ -45,7 +92,7 @@
             <cocoa class="SlapsResumeCommand"/>
         </command>
         <command name="dismiss alert" code="SLPSdism"
-                 description="Dismiss the alert on screen, or take back the one sent with an id.">
+                 description="Dismiss the alert on screen, or take back the alert or tab sent with an id.">
             <cocoa class="SlapsDismissCommand"/>
             <parameter name="id" code="SLid" type="text" optional="yes"
                        description="The id it was sent with; up or still to come.">

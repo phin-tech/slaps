@@ -59,6 +59,32 @@ final class SlapsShowAlertCommand: NSScriptCommand {
     }
 }
 
+/// show tab "Reply to Bob" [slap in minutes 30 | slap at date | never slap true] [link "…"] [notes "…"] [from "…"]
+///     [id "…"] [color "teal"] [position "top"] [group "reviews"] [icon "envelope.fill"]
+@objc(SlapsShowTabCommand)
+final class SlapsShowTabCommand: NSScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        let args = evaluatedArguments ?? [:]
+        let title = directParameter as? String ?? ""
+        return run {
+            let now = Date()
+            var deadline = TabDeadline.setting
+            if (args["never"] as? Bool) == true { deadline = .never }
+            else if let date = args["date"] as? Date { deadline = .at(date) }
+            else if let minutes = (args["minutes"] as? NSNumber)?.doubleValue {
+                guard minutes >= 0 else { throw ExternalCommand.Failure("slap in minutes can't be negative") }
+                deadline = .after(minutes * 60)
+            }
+            return try .tab(ExternalTab(title: title, deadline: deadline, link: args["link"] as? String,
+                                        notes: args["notes"] as? String,
+                                        source: args["source"] as? String ?? "AppleScript",
+                                        key: args["key"] as? String, color: args["color"] as? String,
+                                        position: try (args["position"] as? String).map(TabSlot.init(external:)),
+                                        group: args["group"] as? String, icon: args["icon"] as? String, now: now))
+        }
+    }
+}
+
 /// pause alerts [for minutes 30]
 @objc(SlapsPauseCommand)
 final class SlapsPauseCommand: NSScriptCommand {

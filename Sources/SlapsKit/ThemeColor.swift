@@ -47,3 +47,21 @@ public struct ThemeColor: Equatable, Sendable {
         ThemeColor(red: red * (1 - amount), green: green * (1 - amount), blue: blue * (1 - amount))
     }
 }
+
+/// Kept as its hex, as the settings keep it.
+extension ThemeColor: Codable {
+    public init(from decoder: Decoder) throws {
+        let hex = try decoder.singleValueContainer().decode(String.self)
+        guard let color = ThemeColor(hex: hex) else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "not a hex colour"))
+        }
+        self = color
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        try c.encode(hex)
+    }
+}
+
+extension ThemeColor: Hashable {}

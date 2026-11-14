@@ -12,6 +12,7 @@ final class AppModel {
     @ObservationIgnored let calendar = CalendarSource()
     @ObservationIgnored private let overlay = OverlayController()
     @ObservationIgnored private let hotKeys = HotKeys()
+    @ObservationIgnored let tabsController = TabsController()
     /// The settings. A demo copy (`just screenshots`) keeps its own, so it can't change yours.
     @ObservationIgnored private let defaults: UserDefaults = {
         #if DEBUG
@@ -40,6 +41,28 @@ final class AppModel {
     @ObservationIgnored private var monthCache: [Date: [Meeting]] = [:]
     /// Alerts other apps asked for (`slaps://alert`, AppleScript), until they're over. Not kept across a quit.
     private(set) var customAlerts: [Meeting] = []
+    /// The Tabs on the edge of the screen (`TabsPanel.swift`), kept across a quit.
+    private(set) var tabBoard: TabBoard { didSet { saveTabs() } }
+    /// Tabs escalated into the Slap that's up, by the Slap's id, so snoozing it puts the Tab back.
+    @ObservationIgnored private var escalated: [String: EdgeTab] = [:] { didSet { saveTabs() } }
+    /// Tabs are hidden while you share your screen (with Hold Alerts While I Share My Screen).
+    private(set) var tabsHidden = false
+    var tabEdge: TabEdge { didSet { defaults.set(tabEdge.rawValue, forKey: PrefKey.tabEdge) } }
+    var tabLook: TabLook { didSet { defaults.set(tabLook.rawValue, forKey: PrefKey.tabLook) } }
+    var tabSize: TabSize { didSet { defaults.set(tabSize.rawValue, forKey: PrefKey.tabSize) } }
+    var tabPile: TabPile { didSet { defaults.set(tabPile.rawValue, forKey: PrefKey.tabPile) } }
+    var tabPosition: TabPosition { didSet { defaults.set(tabPosition.rawValue, forKey: PrefKey.tabPosition) } }
+    /// Tabs show in screenshots and recordings; otherwise they're kept out, as alerts are.
+    var tabsInScreenshots: Bool { didSet { defaults.set(tabsInScreenshots, forKey: PrefKey.tabsInScreenshots) } }
+    /// The Deadline for Tabs whose sender gave none, in seconds; 0 for none, the default.
+    var tabDeadline: TimeInterval { didSet { defaults.set(tabDeadline, forKey: PrefKey.tabDeadline) } }
+    /// The keyboard shortcuts, as you've set them.
+    var shortcuts: [HotKeys.Action: Shortcut] {
+        didSet {
+            defaults.shortcuts = Dictionary(uniqueKeysWithValues: shortcuts.map { ($0.key.key, $0.value) })
+            updateHotKeys()
+        }
+    }
     /// A pretend meeting from Test Alert, which is never in the calendar.
     private var testMeeting: Meeting?
 
@@ -142,6 +165,19 @@ final class AppModel {
         videoMode = defaults.string(forKey: PrefKey.videoMode).flatMap(VideoMode.init(rawValue:)) ?? .links
         rouletteCategory = defaults.string(forKey: PrefKey.rouletteCategory)
             .flatMap { Roulette.categories.contains($0) ? $0 : nil } ?? "funny"
+        // Tabs whose deadline passed while Slaps wasn't running come back looking overdue, without a Slap.
+        tabBoard = defaults.tabs.restored(at: Date())
+        tabEdge = defaults.string(forKey: PrefKey.tabEdge).flatMap(TabEdge.init(rawValue:)) ?? .right
+        tabLook = defaults.string(forKey: PrefKey.tabLook).flatMap(TabLook.init(rawValue:)) ?? .icon
+        tabSize = defaults.string(forKey: PrefKey.tabSize).flatMap(TabSize.init(rawValue:)) ?? .regular
+        tabPile = defaults.string(forKey: PrefKey.tabPile).flatMap(TabPile.init(rawValue:)) ?? .neat
+        tabPosition = defaults.string(forKey: PrefKey.tabPosition).flatMap(TabPosition.init(rawValue:)) ?? .middle
+        tabsInScreenshots = defaults.bool(forKey: PrefKey.tabsInScreenshots)
+        tabDeadline = defaults.object(forKey: PrefKey.tabDeadline) as? Double ?? 0
+        let saved = defaults.shortcuts
+        shortcuts = Dictionary(uniqueKeysWithValues: HotKeys.Action.allCases.map {
+            ($0, saved[$0.key] ?? $0.defaultShortcut)
+        })
     }
 
     var schedule: AlertSchedule { AlertSchedule(leadTime: leadTime) }
@@ -173,6 +209,7 @@ final class AppModel {
             MainActor.assumeIsolated { AppModel.shared.fetch() }
         }
         updateHotKeys()
+        tabsController.start()
         BatteryMonitor.observe { AppModel.shared.checkBattery() }
         checkBattery()
         prepareVideo()
@@ -243,7 +280,8 @@ final class AppModel {
 
     /// Every 5 seconds, or sooner when an alert is due before then, so it goes up on time.
     private var untilNextTick: TimeInterval {
-        let next = schedule.nextFire(upcoming, after: now, state: state, overrides: overrides)
+        let next = [schedule.nextFire(upcoming, after: now, state: state, overrides: overrides),
+                    tabBoard.nextDeadline(after: now)].compactMap { $0 }.min()
         return min(5, max(0.1, (next ?? .distantFuture).timeIntervalSince(Date())))
     }
 
@@ -253,10 +291,30 @@ final class AppModel {
         if now.timeIntervalSince(lastFetch) > 5 * 60 { fetch(); return }
         if let until = pausedUntil, until <= now { pausedUntil = nil }
         customAlerts.removeAll { $0.end <= now || state.dismissed.contains($0.id) }
+        // A Slap that's been answered, or has run its hour, is done with its Tab.
+        if escalated.keys.contains(where: { id in !customAlerts.contains { $0.id == id } }) {
+            escalated = escalated.filter { id, _ in customAlerts.contains { $0.id == id } }
+        }
+        // Asked at most once a tick, and only when it matters: the window list isn't free.
+        var sharingNow: Bool?
+        func sharing() -> Bool {
+            if let sharingNow { return sharingNow }
+            let s = pauseWhileSharing && ScreenShare.isSharing()
+            sharingNow = s
+            return s
+        }
         var due = isPaused ? [] : schedule.due(upcoming, at: now, state: state, overrides: overrides)
+        // A Tab past its deadline escalates once nothing else is up or due, so Slaps go up one at a time and a
+        // meeting goes first; not while paused or sharing, when it waits on the edge with its sliver full.
+        if due.isEmpty, alerting.isEmpty, testMeeting == nil, !isPaused,
+           let tab = tabBoard.nextToEscalate(at: now), !sharing() {
+            escalate(tab)
+            due = schedule.due(upcoming, at: now, state: state, overrides: overrides)
+        }
+        let hideTabs = !tabBoard.isEmpty && sharing()
+        if hideTabs != tabsHidden { tabsHidden = hideTabs }
         // Held back while sharing; the menu bar shows they're waiting, and they go up when sharing stops.
-        if pauseWhileSharing, !due.isEmpty, alerting.isEmpty, shownDespiteSharing.isDisjoint(with: due.map(\.id)),
-           ScreenShare.isSharing() {
+        if !due.isEmpty, alerting.isEmpty, shownDespiteSharing.isDisjoint(with: due.map(\.id)), sharing() {
             heldForSharing = due
             due = []
         } else {
@@ -352,14 +410,27 @@ final class AppModel {
         switch command {
         case .alert(let alert):
             // Sent again with the same id, it takes the old one's place, and goes up even if that one was dismissed.
+            // Tabs share the ids, so it takes a Tab's place too.
+            if let key = alert.key { tabBoard.remove(key) }
             let id = alert.key.map { ExternalAlert.meetingID(key: $0) } ?? "custom-\(UUID().uuidString)"
+            escalated[id] = nil
             customAlerts.removeAll { $0.id == id }
             state.forget(id)
             customAlerts.append(alert.meeting(id: id))
             tick()
+        case .tab(let sent):
+            let tab = sent.tab(at: Date(), defaultDeadline: tabDeadline > 0 ? tabDeadline : nil)
+            // In place of an alert, or a Slap, sent with the same id.
+            customAlerts.removeAll { $0.id == tab.slapID }
+            escalated[tab.slapID] = nil
+            tabBoard.add(tab)
+            tick()
         case .withdraw(let key):
+            // An alert or a Tab, wherever it is: on the edge, up as a Slap, or still to come.
             let id = ExternalAlert.meetingID(key: key)
             customAlerts.removeAll { $0.id == id }
+            escalated[id] = nil
+            tabBoard.remove(key)
             tick()
         case .pause(let interval): pause(for: interval)
         case .resume: resume()
@@ -441,9 +512,73 @@ final class AppModel {
 
     func snooze(_ meetings: [Meeting], until date: Date) {
         for m in meetings {
-            if m.id == testMeeting?.id { testMeeting = nil } else { state.snooze(m.id, until: date) }
+            if m.id == testMeeting?.id {
+                testMeeting = nil
+            } else if let tab = escalated.removeValue(forKey: m.id) {
+                // A Slap from a Tab goes back on the edge, to slap again when the snooze is up.
+                customAlerts.removeAll { $0.id == m.id }
+                tabBoard.add(tab.snoozed(at: Date(), until: date))
+            } else {
+                state.snooze(m.id, until: date)
+            }
         }
         tick()
+    }
+
+    // MARK: Tabs
+
+    /// Takes a Tab off the edge and puts it up as a Slap.
+    private func escalate(_ tab: EdgeTab) {
+        tabBoard.remove(tab.id)
+        let slap = tab.slap(at: now)
+        customAlerts.removeAll { $0.id == slap.id }
+        state.forget(slap.id)
+        escalated[slap.id] = tab
+        customAlerts.append(slap)
+    }
+
+    private func saveTabs() {
+        defaults.tabs = TabBoard(tabBoard.tabs + escalated.values)
+    }
+
+    func dismissTab(_ tab: EdgeTab) {
+        tabBoard.remove(tab.id)
+        tick()
+    }
+
+    func dismissTabs(from source: String) {
+        tabBoard.removeAll(from: source)
+        tick()
+    }
+
+    /// A stack's Tabs, all at once.
+    func dismissTabs(_ tabs: [EdgeTab]) {
+        for tab in tabs { tabBoard.remove(tab.id) }
+        tick()
+    }
+
+    func dismissAllTabs() {
+        tabBoard.removeAll()
+        tick()
+    }
+
+    /// Opens a Tab's link. With answers to give, it stays, to answer after; otherwise that's it done.
+    func openTab(_ tab: EdgeTab) {
+        guard let url = tab.link else { return }
+        NSWorkspace.shared.open(url)
+        if tab.actions.isEmpty { dismissTab(tab) }
+    }
+
+    func answer(_ action: ExternalAction, onTab tab: EdgeTab) {
+        NSWorkspace.shared.open(action.url)
+        dismissTab(tab)
+    }
+
+    /// Return on a Tab, from the keyboard: its first answer, else its link, else Dismiss.
+    func act(on tab: EdgeTab) {
+        if let action = tab.actions.first { answer(action, onTab: tab) }
+        else if tab.link != nil { openTab(tab) }
+        else { dismissTab(tab) }
     }
 
     func setOverride(_ override: AlertOverride?, for meeting: Meeting, scope: Overrides.Scope) {
@@ -479,14 +614,18 @@ final class AppModel {
 
     var hotKeysRegistered: Int { hotKeys.registered }
 
+    /// Whether macOS took this shortcut; another app may hold it.
+    func isRegistered(_ action: HotKeys.Action) -> Bool { hotKeys.isRegistered(action) }
+
     private func updateHotKeys() {
         guard hotKeysEnabled else { return hotKeys.disable() }
-        hotKeys.enable { [weak self] action in
+        hotKeys.enable(shortcuts) { [weak self] action in
             guard let self else { return }
             switch action {
             case .join: joinCurrentOrNext()
             case .dismiss: dismiss(alerting)
             case .pause: isPaused ? resume() : pause(for: 3600)
+            case .tabs: tabsController.toggleFocus()
             }
         }
     }

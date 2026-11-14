@@ -73,6 +73,24 @@ final class DebugDriver {
             }
             try AppModel.shared.perform(ExternalCommand.parse(url, now: Date()))
             return "ran \(text)"
+        case "tabs":
+            // Slides a Tab out (tabs <id>, or tabs more), works them from the keyboard (tabs focus), or puts them
+            // back (tabs).
+            let ui = AppModel.shared.tabsController.ui
+            switch request["tab"] as? String {
+            case "focus"?: AppModel.shared.tabsController.toggleFocus()
+            case let name? where TabSize(rawValue: name) != nil: AppModel.shared.tabSize = TabSize(rawValue: name)!
+            case let name? where TabPosition(rawValue: name) != nil:
+                AppModel.shared.tabPosition = TabPosition(rawValue: name)!
+            case let name? where TabEdge(rawValue: name) != nil: AppModel.shared.tabEdge = TabEdge(rawValue: name)!
+            case let name? where TabLook(rawValue: name) != nil: AppModel.shared.tabLook = TabLook(rawValue: name)!
+            case let name? where TabPile(rawValue: name) != nil: AppModel.shared.tabPile = TabPile(rawValue: name)!
+            case "more"?: ui.expanded = TabsUI.more(AppModel.shared.tabPosition)
+            case let id?: ui.expanded = id
+            case nil: ui.expanded = nil
+            }
+            return "tabs: \(AppModel.shared.tabBoard.tabs.map(\.title)); out: \(ui.expanded ?? "none")"
+                + "; frames " + Self.describe(ui.rowFrames)
         case "hotkeys":
             return "\(AppModel.shared.hotKeysRegistered) of \(HotKeys.Action.allCases.count) shortcuts registered"
         case "popover":
@@ -147,6 +165,13 @@ final class DebugDriver {
         case "dismiss":
             AppModel.shared.dismiss(AppModel.shared.alerting)
             return "dismissed"
+        case "reopen":
+            // As opening Slaps again from Applications would.
+            _ = NSApp.delegate?.applicationShouldHandleReopen?(NSApp, hasVisibleWindows: false)
+            return "reopened"
+        case "snooze":
+            AppModel.shared.snooze(AppModel.shared.alerting, until: Date().addingTimeInterval(60))
+            return "snoozed a minute"
         case "quit":
             // Gone first, so a client started after this waits for the next copy instead of this one; the app
             // quits once this reply is on its way.
@@ -176,6 +201,16 @@ final class DebugDriver {
     // MARK: Windows
 
     /// Visible windows, front to back; their index here is what `snapshot` takes.
+    /// Where each Tab is drawn, by place: "top: a 0,0 30x30".
+    private static func describe(_ frames: [TabSlot: [String: CGRect]]) -> String {
+        frames.sorted { $0.key.rawValue < $1.key.rawValue }.map { slot, rows in
+            let list = rows.sorted { $0.value.minY < $1.value.minY }.map { id, f in
+                "\(id) \(Int(f.minX)),\(Int(f.minY)) \(Int(f.width))x\(Int(f.height))"
+            }
+            return "\(slot.rawValue): " + list.joined(separator: ", ")
+        }.joined(separator: "; ")
+    }
+
     private func visibleWindows() -> [NSWindow] {
         // Not `orderedWindows`, which leaves out panels like the alert: the highest level first, then front to back.
         NSApp.windows.filter { $0.isVisible && $0.contentView != nil }

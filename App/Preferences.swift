@@ -112,6 +112,62 @@ enum PrefKey {
     static let videoLinks = "videoLinks"
     static let videoMode = "videoMode"
     static let rouletteCategory = "rouletteCategory"
+    static let tabs = "tabs"
+    static let tabEdge = "tabEdge"
+    static let tabLook = "tabLook"
+    static let tabDeadline = "tabDeadline"
+    static let tabSize = "tabSize"
+    static let tabPosition = "tabPosition"
+    static let tabsInScreenshots = "tabsInScreenshots"
+    static let tabPile = "tabPile"
+    static let shortcuts = "shortcuts"
+}
+
+/// Which edge of the main screen Tabs stand on.
+enum TabEdge: String, CaseIterable, Identifiable {
+    case right, left
+    var id: Self { self }
+    var name: String { self == .right ? "Right" : "Left" }
+}
+
+/// Where on their edge Tabs stand, unless their sender says.
+typealias TabPosition = TabSlot
+
+extension TabSlot: Identifiable {
+    public var id: Self { self }
+    var name: String { rawValue.capitalized }
+}
+
+/// How a group's Tabs pile up behind it: squared off, or askew like a pile of paper.
+enum TabPile: String, CaseIterable, Identifiable {
+    case neat, messy
+    var id: Self { self }
+    var name: String { rawValue.capitalized }
+}
+
+/// How big Tabs are, collapsed and slid out.
+enum TabSize: String, CaseIterable, Identifiable {
+    case regular, mini
+    var id: Self { self }
+    var name: String { rawValue.capitalized }
+}
+
+/// How a Tab looks until you hover over it.
+enum TabLook: String, CaseIterable, Identifiable {
+    /// A thin coloured sliver.
+    /// A small square with the Source's initial.
+    case icon
+    case slim
+    /// The Source's initial and a few words of the title.
+    case labelled
+    var id: Self { self }
+    var name: String {
+        switch self {
+        case .icon: "Icon"
+        case .slim: "Slim"
+        case .labelled: "Wide"
+        }
+    }
 }
 
 extension UserDefaults {
@@ -121,6 +177,24 @@ extension UserDefaults {
             return (try? JSONDecoder().decode(AlertFilter.self, from: data)) ?? AlertFilter()
         }
         set { set(try? JSONEncoder().encode(newValue), forKey: PrefKey.filter) }
+    }
+
+    /// The Tabs up, and any escalated into a Slap, kept across a quit.
+    var tabs: TabBoard {
+        get {
+            guard let data = data(forKey: PrefKey.tabs) else { return TabBoard() }
+            return (try? JSONDecoder().decode(TabBoard.self, from: data)) ?? TabBoard()
+        }
+        set { set(try? JSONEncoder().encode(newValue), forKey: PrefKey.tabs) }
+    }
+
+    /// Shortcuts you changed, by `HotKeys.Action.key`; the rest are their defaults.
+    var shortcuts: [String: Shortcut] {
+        get {
+            guard let data = data(forKey: PrefKey.shortcuts) else { return [:] }
+            return (try? JSONDecoder().decode([String: Shortcut].self, from: data)) ?? [:]
+        }
+        set { set(try? JSONEncoder().encode(newValue), forKey: PrefKey.shortcuts) }
     }
 
     var overrides: Overrides {

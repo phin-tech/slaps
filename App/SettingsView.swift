@@ -135,15 +135,47 @@ private struct GeneralSettings: View {
                     .textSelection(.enabled)
             }
             Section {
+                Picker("Edge", selection: $model.tabEdge) {
+                    ForEach(TabEdge.allCases) { Text($0.name).tag($0) }
+                }
+                Picker("Position", selection: $model.tabPosition) {
+                    ForEach(TabPosition.allCases) { Text($0.name).tag($0) }
+                }
+                Picker("Look", selection: $model.tabLook) {
+                    ForEach(TabLook.allCases) { Text($0.name).tag($0) }
+                }
+                Picker("Size", selection: $model.tabSize) {
+                    ForEach(TabSize.allCases) { Text($0.name).tag($0) }
+                }
+                Picker("Stacks", selection: $model.tabPile) {
+                    ForEach(TabPile.allCases) { Text($0.name).tag($0) }
+                }
+                Toggle("Show tabs in screenshots and recordings", isOn: $model.tabsInScreenshots)
+                Picker("Unless the sender says, slap me", selection: $model.tabDeadline) {
+                    Text("Never").tag(0.0)
+                    ForEach([15, 30, 60, 120, 240, 480], id: \.self) { m in
+                        Text(m < 60 ? "\(m) minutes after it arrives" : "\(m / 60) hour\(m == 60 ? "" : "s") after it arrives")
+                            .tag(Double(m * 60))
+                    }
+                }
+            } header: {
+                Text("Tabs")
+            } footer: {
+                Text("Other apps can leave a tab on the edge of the main screen (slaps tab \"Reply to Bob\" --deadline 30). "
+                    + "It stays until you dismiss it; past its deadline it goes up full screen. Hover to slide one out.")
+                    .foregroundStyle(.secondary)
+            }
+            Section {
                 Toggle("Keyboard shortcuts", isOn: $model.hotKeysEnabled)
                 ForEach(HotKeys.Action.allCases) { action in
                     LabeledContent(action.title) {
-                        Text(action.shortcut).monospaced().foregroundStyle(.secondary)
+                        ShortcutRecorder(model: model, action: action)
                     }
-                    .opacity(model.hotKeysEnabled ? 1 : 0.5)
+                    .disabled(!model.hotKeysEnabled)
                 }
             } footer: {
-                Text("They work from any app.").foregroundStyle(.secondary)
+                Text("They work from any app. Click one, then press the keys you want; it needs ⌃, ⌥ or ⌘.")
+                    .foregroundStyle(.secondary)
             }
             Section {
                 Toggle("Show the date in the menu bar", isOn: $model.showDateInMenuBar)
@@ -176,6 +208,65 @@ private struct GeneralSettings: View {
             #endif
         }
         .formStyle(.grouped)
+    }
+}
+
+/// A shortcut, which you click and then press the keys you want in its place; Escape gives up, and ↺ goes back to
+/// the one it came with.
+private struct ShortcutRecorder: View {
+    @Bindable var model: AppModel
+    let action: HotKeys.Action
+    @State private var recording = false
+    @State private var monitor: Any?
+
+    var body: some View {
+        let shortcut = model.shortcuts[action] ?? action.defaultShortcut
+        HStack(spacing: 4) {
+            Button(recording ? "Press keys…" : shortcut.display) { recording ? stop() : record() }
+                .monospaced()
+                .frame(minWidth: 90)
+            if shortcut != action.defaultShortcut {
+                Button { model.shortcuts[action] = action.defaultShortcut } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .buttonStyle(.borderless)
+                .help("Back to \(action.defaultShortcut.display)")
+            }
+            if model.hotKeysEnabled && !model.isRegistered(action) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+                    .help("Another app has this shortcut")
+            }
+        }
+        .onDisappear(perform: stop)
+    }
+
+    private func record() {
+        recording = true
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == 53 && event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty {
+                stop()   // Escape alone: never mind
+                return nil
+            }
+            let shortcut = Shortcut(event)
+            guard shortcut.isUsable else {
+                NSSound.beep()
+                return nil
+            }
+            // One shortcut can't do two things: one that had it takes this one's old shortcut, so they swap.
+            let old = model.shortcuts[action] ?? action.defaultShortcut
+            for other in HotKeys.Action.allCases where other != action && model.shortcuts[other] == shortcut {
+                model.shortcuts[other] = old
+            }
+            model.shortcuts[action] = shortcut
+            stop()
+            return nil
+        }
+    }
+
+    private func stop() {
+        recording = false
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
     }
 }
 

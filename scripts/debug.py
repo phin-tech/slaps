@@ -21,6 +21,8 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
   popover                    click the menu bar item, opening or closing the popover
   style fullScreen|top|bottom  how much of the screen alerts take
   url slaps://…                 run a slaps:// URL in this copy only, as another app would
+  tabs [<id>|more|focus]     slide a tab out, or the +N one, or work them from the keyboard; no id puts them back
+  tabs mini|regular|top|middle|bottom|left|right|icon|slim|labelled|neat|messy   change how tabs look and stand
   theme midnight|ember|forest|paper|custom   the alert's colours
   onboarding                 open the welcome window
   state                      what the app thinks is alerting
@@ -32,6 +34,8 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
   video                      whether the alert's video is playing
   sharing                    whether screen sharing is detected
   dismiss                    dismiss the alert that is up
+  snooze                     snooze the alert that is up for a minute
+  reopen                     as if Slaps were opened again while running (it opens Settings)
   quit                       quit this copy of the app
   help                       this
 
@@ -46,6 +50,8 @@ def request(argv):
         return {"command": "theme", "theme": args[0] if args else ""}
     if command == "style":
         return {"command": "style", "style": args[0] if args else ""}
+    if command == "tabs":
+        return {"command": "tabs", "tab": args[0]} if args else {"command": "tabs"}
     if command == "url":
         return {"command": "url", "url": args[0] if args else ""}
     if command == "alert":
@@ -60,7 +66,7 @@ def request(argv):
         if not args or not args[0].isdigit():
             sys.exit("battery needs a percentage, or real")
         return {"command": "battery", "percent": int(args[0]), "power": "power" in args[1:], "enable": True}
-    if command in ("ping", "windows", "dismiss", "popover", "onboarding", "hotkeys", "sharing", "state", "quit"):
+    if command in ("ping", "windows", "dismiss", "snooze", "reopen", "popover", "onboarding", "hotkeys", "sharing", "state", "quit"):
         return {"command": command}
     if command == "snapshot":
         if not args:
