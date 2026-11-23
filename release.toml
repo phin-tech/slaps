@@ -7,6 +7,14 @@ description = "Full-screen meeting alerts you cannot miss"
 team_id = "J35P7AJDN7"
 op_item = "op://Development/lc6wrq7lltjd47uue26cdxttzu"
 
+# Signing and notarization secrets (APPLE_ID, TEAM_ID, APP_SPECIFIC_PASSWORD, P12 base64-encoded, P12_PASSPHRASE,
+# SPARKLE_PRIVATE_KEY): Infisical Cloud, the project the other Phin Tech apps release from. `infisical login` on a Mac.
+# op_item above is only the 1Password copy they were moved from.
+[secrets]
+provider = "infisical"
+project = "ab5ef8f1-af05-4d58-875d-f0e28832d026"
+environment = "prod"
+
 # A development build, as Xcode's Run would put it there. Only devices in the team's profile (and this Mac) run it.
 # One that can't be reached is skipped, and `just ship` lists it at the end.
 [devices]

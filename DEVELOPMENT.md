@@ -3,8 +3,8 @@
 ## Building
 
 Needs Xcode 26.6 or later, [xcodegen](https://github.com/yonaskolb/XcodeGen), [just](https://just.systems)
-and, for releasing, [uv](https://docs.astral.sh/uv/), `gh` and the 1Password CLI `op`:
-`brew install xcodegen just uv gh 1password-cli`.
+and, for releasing, [uv](https://docs.astral.sh/uv/), `gh` and the Infisical CLI:
+`brew install xcodegen just uv gh infisical/get-cli/infisical`.
 
 ```sh
 just build           # generate the Xcode project and build the app
@@ -52,14 +52,14 @@ the same template: a Python program pinned to a tag in `scripts/release/pyprojec
 with your git credentials for git.phin.tech. What it knows about Slaps is in `release.toml`. Versions are written
 by [bump-my-version](https://github.com/callowayproject/bump-my-version) (`.bumpversion.toml` lists the files), and
 the appcast by Sparkle's own `generate_appcast`. Settings come from the environment (`NOTARY_OP_ITEM`,
-`DEVELOPMENT_TEAM`, `NOTARY_PROFILE`), so a build machine can run it unattended; `op` works there with a 1Password
-service account (`OP_SERVICE_ACCOUNT_TOKEN`). `just doctor` checks everything it needs outside the repository.
+`DEVELOPMENT_TEAM`, `NOTARY_PROFILE`), so a build machine can run it unattended; Infisical works there with a machine
+identity's token (`INFISICAL_TOKEN`). `just doctor` checks everything it needs outside the repository.
 
-Credentials come from 1Password (`op://Development/lc6wrq7lltjd47uue26cdxttzu`: `apple_id`, `team_id`, `app_specific_password`, `p12` and
-`p12_passphrase` (the Developer ID certificate), and `sparkle_private_key`), so a Mac needs only the 1Password CLI signed in (`op signin`) to release. The certificate
-goes into a keychain made for each run and deleted afterwards; without `p12` in the item, the login keychain's is used.
-To keep the secrets in Infisical, or in a CI tool's environment, instead, add `[secrets]` to `release.toml` (see
-app-release's README). Without any notarization credentials, `just notarize` falls
+Credentials come from Infisical Cloud (the project the other Phin Tech apps share, environment `prod`, `[secrets]` in
+`release.toml`): `APPLE_ID`, `TEAM_ID`, `APP_SPECIFIC_PASSWORD`, `P12` (the Developer ID certificate, base64-encoded)
+and `P12_PASSPHRASE`, and `SPARKLE_PRIVATE_KEY`, so a Mac needs only `infisical login` to release. 1Password
+(`op://Development/lc6wrq7lltjd47uue26cdxttzu`) keeps the copy they were moved from. The certificate goes into a
+keychain made for each run and deleted afterwards. Without any notarization credentials, `just notarize` falls
 back to a notarytool keychain profile: `xcrun notarytool store-credentials slaps-notary --apple-id <apple id>
 --team-id J35P7AJDN7`.
 
@@ -81,7 +81,7 @@ The steps by hand, if one fails halfway:
 The app updates itself in place with [Sparkle](https://sparkle-project.org) (`App/UpdateChecker.swift`). Its feed,
 `SUFeedURL`, is `releases/latest/download/appcast.xml`: an asset of the newest release (GitHub skips drafts and
 pre-releases), made by Sparkle's `generate_appcast` in `just appcast`. Entries are signed with the EdDSA key in
-1Password (`sparkle_private_key`, given to the tool on stdin; the public half is `SUPublicEDKey` in `project.yml`), so
+Infisical (`SPARKLE_PRIVATE_KEY`, given to the tool on stdin; the public half is `SUPublicEDKey` in `project.yml`), so
 installed copies only accept updates signed by it. Do not lose or replace that key: copies already out there would
 reject every later update. `just appcast` checks every entry is signed and the new one verifies before it uploads.
 Sparkle's tools are downloaded, pinned, into `~/Library/Caches/app-release`. Debug builds do not check for updates.
@@ -92,7 +92,7 @@ Done: 0.2.0 was the first, on 2026-11-03. For the record, once, before the first
 
 1. `just bootstrap`: creates the GitHub repository `phin-tech/slaps` (public: Sparkle and Homebrew download the
    release zips without credentials), pushes `main` to it, and runs `just doctor`, which checks `gh`,
-   every 1Password field and the Developer ID certificate.
+   every secret in Infisical and the Developer ID certificate.
 2. Fix whatever `just doctor` lists, and run it again until it is clean.
 3. The Sparkle key in `op://Development/lc6wrq7lltjd47uue26cdxttzu` must be the other half of `SUPublicEDKey` in `project.yml` (`just appcast` checks
    this before uploading anything). For a key of its own, run Sparkle's `generate_keys -x <file>` from
