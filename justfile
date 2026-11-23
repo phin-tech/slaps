@@ -15,7 +15,7 @@ gen:
 build: gen
     xcodebuild -project Slaps.xcodeproj -scheme Slaps build
 
-# Link slaps in ~/.local/bin to the app in /Applications, as Settings › General does
+# Link slaps in ~/.local/bin to the app in /Applications, as Settings › Command Line does
 install-cli:
     mkdir -p ~/.local/bin && ln -sf /Applications/Slaps.app/Contents/MacOS/Slaps ~/.local/bin/slaps
     @echo "slaps is in ~/.local/bin; try: slaps help"
@@ -62,7 +62,7 @@ screenshots: build
     debug popover >/dev/null
     debug onboarding >/dev/null
     debug --wait 1 snapshot "$PWD/$out/welcome.png" "Welcome to Slaps" >/dev/null
-    debug menu Slaps "Settings…" >/dev/null
+    debug settings general >/dev/null
     debug --wait 1 snapshot "$PWD/$out/settings.png" General >/dev/null
     # The alert is the size of the screen; the README doesn't need all of it.
     sips -Z 1600 "$out/alert.png" >/dev/null

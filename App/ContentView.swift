@@ -6,6 +6,7 @@ struct ContentView: View {
     let model: AppModel
     @Environment(\.openSettings) private var openSettings
     @State private var selected = Calendar.current.startOfDay(for: Date())
+    @State private var undo: UndoNotice?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -39,7 +40,7 @@ struct ContentView: View {
                     .padding(8)
                     .background(.orange.opacity(0.2), in: .rect(cornerRadius: 6))
                 }
-                if !model.tabBoard.isEmpty { TabsSection(model: model) }
+                if !model.tabBoard.isEmpty { TabsSection(model: model) { undo = $0 } }
                 Text(dayTitle).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                 let items = model.agenda(for: selected)
                 if items.isEmpty {
@@ -81,6 +82,7 @@ struct ContentView: View {
         }
         .padding(12)
         .frame(width: 340)
+        .overlay(alignment: .bottom) { UndoBar(notice: $undo).padding(.bottom, 44) }
         .onAppear {
             selected = Calendar.current.startOfDay(for: Date())
             model.fetch()
@@ -99,6 +101,15 @@ struct ContentView: View {
 /// Every Tab, here too: the one place to see them while they're hidden for screen sharing, and to clear them out.
 private struct TabsSection: View {
     let model: AppModel
+    /// Says what was dismissed, with Undo.
+    let said: (UndoNotice) -> Void
+
+    private func dismiss(_ tabs: [EdgeTab]) {
+        guard !tabs.isEmpty else { return }
+        model.dismissTabs(tabs)
+        let what = tabs.count == 1 ? "Dismissed \u{201C}\(tabs[0].title)\u{201D}" : "Dismissed \(tabs.count) tabs"
+        said(UndoNotice(what) { [model] in model.restoreTabs(tabs) })
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -106,7 +117,7 @@ private struct TabsSection: View {
                 Text(model.tabsHidden ? "Tabs · hidden while you share" : "Tabs")
                     .font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                 Spacer()
-                Button("Dismiss All") { model.dismissAllTabs() }
+                Button("Dismiss All") { dismiss(model.tabBoard.tabs) }
                     .buttonStyle(.borderless)
                     .font(.caption)
             }
@@ -125,7 +136,7 @@ private struct TabsSection: View {
                                     .buttonStyle(.borderless)
                                     .help("Open its link")
                             }
-                            Button { model.dismissTab(tab) } label: { Image(systemName: "xmark.circle") }
+                            Button { dismiss([tab]) } label: { Image(systemName: "xmark.circle") }
                                 .buttonStyle(.borderless)
                                 .help("Dismiss")
                         }

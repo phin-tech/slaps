@@ -42,10 +42,12 @@ notification that stays. Neither takes the keyboard from what you're typing in; 
   hour or resumes, ⌃⌥⌘T opens the tabs; change any of them in Settings. An alert ignores keys for its first 1.5 seconds, so typing elsewhere can't join or dismiss it.
 - **Menu bar:** a month calendar with a dot on busy days, the chosen day's agenda with Join buttons, minutes to the
   next meeting (and the date, if you like), pause (30 min, 1 or 2 hours, until tomorrow) and a test alert.
-- **Settings:** lead time, full screen or a banner at the top or bottom, sound, theme (Midnight, Ember, Forest,
-  Paper, or Custom: your own background and accent colours, with text that reads on them), open at login.
-- **Welcome window** on first launch: calendar access, when to alert, reminders, open at login and a test alert,
-  as a checklist. Settings › General opens it again.
+- **Settings:** a sidebar of sections with a search box. Lead time, full screen or a banner at the top or bottom,
+  sound, theme (Midnight, Ember, Forest, Paper, or Custom: your own background and accent colours, with text that
+  reads on them), open at login.
+- **Welcome window** on first launch, a step at a time: calendar access, when to alert and a test alert, reminders,
+  a video, the keys, the command line, and opening at login. ← and → go between steps. Settings › General opens it
+  again.
 
 <table>
   <tr>
@@ -58,14 +60,14 @@ notification that stays. Neither takes the keyboard from what you're typing in; 
   </tr>
 </table>
 
-<p align="center"><img src="docs/screenshots/settings.png" width="480" alt="Settings › General: lead time, alert again at start, sound, theme, holding alerts while sharing"></p>
+<p align="center"><img src="docs/screenshots/settings.png" width="480" alt="Settings: a sidebar of sections with a search box, and the General section"></p>
 
 ## Install
 
 Slaps needs macOS 14 or later. Download it from [apps.phin.tech](https://apps.phin.tech)
 ([the latest zip](https://apps.phin.tech/Slaps/latest.zip)) or the
 [GitHub releases](https://github.com/phin-tech/slaps/releases/latest), unzip it, and move Slaps to Applications. It's
-notarized by Apple, so it opens without a warning, and it updates itself (Settings › General › Updates).
+notarized by Apple, so it opens without a warning, and it updates itself (Settings › Updates).
 
 Slaps lives in the menu bar, with no Dock icon. On first launch the welcome window walks through calendar access and
 the rest; quit it from the popover's ⏻ button.
@@ -91,7 +93,7 @@ after every install.
 ## Other apps
 
 Scripts, Shortcuts, Raycast or any app can put up an alert, and pause or resume Slaps, with a `slaps://` URL or
-AppleScript. Turn it off in Settings › General.
+AppleScript. Turn it off in Settings › Other Apps.
 
 ```sh
 open -g "slaps://alert?title=Deploy%20done"                                  # now
@@ -148,7 +150,7 @@ names it: Open in Boiler Room.
 
 ### The command line
 
-Settings › General › Command line puts `slaps` in `~/.local/bin` (or `just install-cli`): the app's own binary,
+Settings › Command Line puts `slaps` in `~/.local/bin` (as do the welcome window and `just install-cli`): the app's own binary,
 which says what's wrong in the terminal rather than in the log.
 
 ```sh

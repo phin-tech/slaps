@@ -24,7 +24,10 @@ usage: debug.py [--socket PATH] [--wait SECONDS] <command> [args]
   tabs [<id>|more|focus]     slide a tab out, or the +N one, or work them from the keyboard; no id puts them back
   tabs mini|regular|top|middle|bottom|left|right|icon|slim|labelled|neat|messy   change how tabs look and stand
   theme midnight|ember|forest|paper|custom   the alert's colours
-  onboarding                 open the welcome window
+  onboarding [step]          open the welcome window, at a step (from 0)
+  key left|right|return|escape|tab|<text>   press a key, or type text, in the key or front window
+  settings [section]         open Settings, at a section (general, alerts, video, battery, calendars, filters,
+                             tabs, shortcuts, otherApps, commandLine, updates)
   state                      what the app thinks is alerting
   hotkeys                    how many global shortcuts are registered
   battery <percent> [power]  pretend the battery is at <percent> (and plugged in), turning battery alerts on
@@ -52,6 +55,12 @@ def request(argv):
         return {"command": "style", "style": args[0] if args else ""}
     if command == "tabs":
         return {"command": "tabs", "tab": args[0]} if args else {"command": "tabs"}
+    if command == "onboarding":
+        return {"command": "onboarding", "step": int(args[0])} if args else {"command": "onboarding"}
+    if command == "key":
+        return {"command": "key", "key": " ".join(args)}
+    if command == "settings":
+        return {"command": "settings", "section": args[0] if args else ""}
     if command == "url":
         return {"command": "url", "url": args[0] if args else ""}
     if command == "alert":
@@ -66,7 +75,7 @@ def request(argv):
         if not args or not args[0].isdigit():
             sys.exit("battery needs a percentage, or real")
         return {"command": "battery", "percent": int(args[0]), "power": "power" in args[1:], "enable": True}
-    if command in ("ping", "windows", "dismiss", "snooze", "reopen", "popover", "onboarding", "hotkeys", "sharing", "state", "quit"):
+    if command in ("ping", "windows", "dismiss", "snooze", "reopen", "popover", "hotkeys", "sharing", "state", "quit"):
         return {"command": command}
     if command == "snapshot":
         if not args:

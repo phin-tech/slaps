@@ -19,7 +19,7 @@ enum Main {
     }
 }
 
-/// `slaps` in a terminal: the app's own binary, through a link to it (Settings › General, or `just install-cli`).
+/// `slaps` in a terminal: the app's own binary, through a link to it (Settings › Command Line, or `just install-cli`).
 enum CommandLineTool {
     static func run(_ arguments: [String]) -> Int32 {
         do {

@@ -34,7 +34,7 @@ public enum SlapsCommandLine {
         screen until dismissed; past its --deadline (Settings' default, none unless set) it goes up full screen.
         Tabs from one --from with the same --group stack up as one; --position picks the place on the edge.
         Colours: red, orange, yellow, green, mint, teal, cyan, blue, indigo, purple, pink, brown, gray. Each --action is a button that opens --callback with its words in place of {action}.
-        Slaps has to allow other apps (Settings › General › Allow Other Apps).
+        Slaps has to allow other apps (Settings › Other Apps).
         """
 
     public struct Failure: Error, Equatable, CustomStringConvertible {

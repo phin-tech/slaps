@@ -405,7 +405,7 @@ final class AppModel {
     /// Runs a command from another app. Throws, with a message for the caller, when it can't.
     func perform(_ command: ExternalCommand) throws {
         guard allowExternal else {
-            throw ExternalCommand.Failure("Other apps can't control Slaps: Settings › General › Allow Other Apps")
+            throw ExternalCommand.Failure("Other apps can't control Slaps: Settings › Other Apps")
         }
         switch command {
         case .alert(let alert):
@@ -559,6 +559,12 @@ final class AppModel {
 
     func dismissAllTabs() {
         tabBoard.removeAll()
+        tick()
+    }
+
+    /// Puts dismissed Tabs back, as they were: Undo after dismissing them.
+    func restoreTabs(_ tabs: [EdgeTab]) {
+        for tab in tabs { tabBoard.add(tab) }
         tick()
     }
 

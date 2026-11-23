@@ -115,7 +115,7 @@ final class DebugDriver {
             AppModel.shared.theme = theme
             return "theme \(name)"
         case "onboarding":
-            OnboardingController.shared.show()
+            OnboardingController.shared.show(step: request["step"] as? Int)
             return "welcome window up"
         case "state":
             let m = AppModel.shared
@@ -169,6 +169,39 @@ final class DebugDriver {
             // As opening Slaps again from Applications would.
             _ = NSApp.delegate?.applicationShouldHandleReopen?(NSApp, hasVisibleWindows: false)
             return "reopened"
+        case "key":
+            // A key pressed in the key window: left, right, return, escape, or text typed a character at a time.
+            guard let name = request["key"] as? String, !name.isEmpty else { throw DebugError("key needs a key") }
+            // The key window, or the front one: the debug copy runs in the background, without the keyboard.
+            guard let window = NSApp.keyWindow ?? visibleWindows().first(where: { $0.canBecomeKey }) else {
+                throw DebugError("no window to press keys in")
+            }
+            let named: [String: (UInt16, String)] = [
+                "left": (123, String(UnicodeScalar(NSLeftArrowFunctionKey)!)),
+                "right": (124, String(UnicodeScalar(NSRightArrowFunctionKey)!)),
+                "return": (36, "\r"), "escape": (53, "\u{1b}"), "tab": (48, "\t"),
+            ]
+            let strokes = named[name].map { [$0] } ?? name.map { (UInt16(0), String($0)) }
+            for (code, characters) in strokes {
+                for type in [NSEvent.EventType.keyDown, .keyUp] {
+                    guard let event = NSEvent.keyEvent(
+                        with: type, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                        windowNumber: window.windowNumber, context: nil, characters: characters,
+                        charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code) else { continue }
+                    window.sendEvent(event)
+                }
+            }
+            return "pressed \(name) in \"\(window.title)\""
+        case "settings":
+            // Settings at a section (its name in the code, as `commandLine`), through the app menu's Settings….
+            if let name = request["section"] as? String, !name.isEmpty {
+                guard let section = SettingsSection(rawValue: name) else {
+                    throw DebugError("section is one of \(SettingsSection.allCases.map(\.rawValue))")
+                }
+                UserDefaults.standard.set(section.rawValue, forKey: "settingsSection")
+            }
+            _ = NSApp.delegate?.applicationShouldHandleReopen?(NSApp, hasVisibleWindows: false)
+            return "settings open"
         case "snooze":
             AppModel.shared.snooze(AppModel.shared.alerting, until: Date().addingTimeInterval(60))
             return "snoozed a minute"

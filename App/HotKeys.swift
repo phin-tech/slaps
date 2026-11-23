@@ -3,7 +3,7 @@ import Carbon.HIToolbox
 import SlapsKit
 
 /// Keyboard shortcuts that work from any app. Carbon's hot keys need no Accessibility or Input Monitoring permission,
-/// unlike watching every key press. Each can be changed in Settings › General (`AppModel.shortcuts`).
+/// unlike watching every key press. Each can be changed in Settings › Shortcuts (`AppModel.shortcuts`).
 @MainActor
 final class HotKeys {
     enum Action: UInt32, CaseIterable, Identifiable {
