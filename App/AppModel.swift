@@ -541,6 +541,12 @@ final class AppModel {
         defaults.tabs = TabBoard(tabBoard.tabs + escalated.values)
     }
 
+    /// Puts a stack of Tabs where you dragged it along the edge (0 the top, 1 the bottom), or with nil, back where
+    /// its sender asked.
+    func placeTabs(_ stackID: String, at place: Double?) {
+        tabBoard.place(stackID, at: place)
+    }
+
     func dismissTab(_ tab: EdgeTab) {
         tabBoard.remove(tab.id)
         tick()

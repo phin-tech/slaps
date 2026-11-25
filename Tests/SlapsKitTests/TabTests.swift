@@ -230,3 +230,51 @@ private func tab(_ id: String, sent: TimeInterval = 0, deadline: TimeInterval? =
     #expect(TabBoard([a, b]).columns(defaultSlot: .middle)[0].shown[0].icon == "star",
             "a stack takes the newest icon there is")
 }
+
+@Test func aTabDraggedAlongTheEdgeStaysThereAndAheadOfItsSender() {
+    var asked = tab("ci")
+    asked.position = .top
+    var board = TabBoard([asked, tab("plain")])
+    board.place("ci", at: 0.3)
+    let columns = board.columns(defaultSlot: .bottom)
+    #expect(columns.map(\.place) == [0.3, 1], "top to bottom")
+    #expect(columns[0].slot == nil)
+    #expect(columns[1].slot == .bottom)
+    // Sent again, it stays where you put it; put back, it goes where its sender asked.
+    board.add(asked)
+    #expect(board.columns(defaultSlot: .bottom)[0].place == 0.3)
+    board.place("ci", at: nil)
+    #expect(board.columns(defaultSlot: .bottom)[0].place == 0)
+}
+
+@Test func aDraggedGroupTakesItsNewTabsWithIt() {
+    func review(_ n: Int) -> EdgeTab {
+        var t = tab("pr\(n)", sent: Double(n), source: "GitHub")
+        t.group = "reviews"
+        return t
+    }
+    var board = TabBoard([review(1), review(2)])
+    let stack = review(1).stackID
+    board.place(stack, at: 0.8)
+    board.add(review(3))
+    #expect(board.columns(defaultSlot: .middle).map(\.place) == [0.8])
+    #expect(board.tabs.allSatisfy { $0.placed == 0.8 })
+}
+
+@Test func tabsDroppedInTheSamePlaceShareItsColumn() {
+    var board = TabBoard([tab("a"), tab("b"), tab("c")])
+    board.place("a", at: 0.25)
+    board.place("b", at: 0.25)
+    let columns = board.columns(defaultSlot: .middle)
+    #expect(columns.map { $0.shown.map(\.id) } == [["a", "b"], ["c"]])
+}
+
+@Test func columnsCloseTogetherPushApartAndStayOnTheEdge() {
+    let tops = TabColumn.arrange([(0.5, 100), (0.52, 60), (0, 40), (1, 80), (0.98, 50)], length: 800, spacing: 6)
+    let spans = zip(tops, [100.0, 60, 40, 80, 50]).map { (top: $0, bottom: $0 + $1) }.sorted { $0.top < $1.top }
+    for (a, b) in zip(spans, spans.dropFirst()) { #expect(b.top - a.bottom >= 6 - 1e-9) }
+    #expect(spans.first!.top >= 0)
+    #expect(spans.last!.bottom <= 800 + 1e-9)
+    #expect(TabColumn.arrange([(0.5, 100)], length: 800, spacing: 6) == [350], "one alone is centred on its place")
+    #expect(TabColumn.arrange([(0, 100), (1, 100)], length: 800, spacing: 6) == [0, 700], "the ends are flush")
+}

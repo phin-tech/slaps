@@ -20,6 +20,8 @@ _Avoid_: App, origin, sender name
 
 **Tab**:
 A lasting, low-key notice pinned to the edge of the screen; many can be up at once, and each stays until dismissed.
+It stands where its sender asked (top, middle or bottom) or the setting says, unless you drag it along the edge:
+then it stays where you dropped it, even when sent again, and a group's new Tabs join it there.
 _Avoid_: Sticky, note, toast, badge
 
 **Escalate**:

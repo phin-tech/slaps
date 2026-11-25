@@ -36,6 +36,15 @@ public enum TabSlot: String, CaseIterable, Codable, Sendable, Identifiable {
 
     public var id: Self { self }
 
+    /// Where along the edge it is: 0 the top, 1 the bottom.
+    public var place: Double {
+        switch self {
+        case .top: 0
+        case .middle: 0.5
+        case .bottom: 1
+        }
+    }
+
     /// As another app writes it.
     public init(external text: String) throws {
         guard let slot = TabSlot(rawValue: text.trimmingCharacters(in: .whitespaces).lowercased()) else {
@@ -136,6 +145,9 @@ public struct EdgeTab: Identifiable, Hashable, Codable, Sendable {
     public var stale = false
     /// Where on the edge its sender wants it; the setting's, if nil.
     public var position: TabSlot?
+    /// Where along the edge you dragged it, 0 the top and 1 the bottom: ahead of where its sender asked, and kept
+    /// when the sender sends it again.
+    public var placed: Double?
     /// The stack it joins, with others from its Source in the same group.
     public var group: String?
     /// An SF Symbol's name, or an app's bundle id for its icon.
@@ -158,6 +170,9 @@ public struct EdgeTab: Identifiable, Hashable, Codable, Sendable {
         self.deadline = deadline
         self.stale = stale
     }
+
+    /// The stack it stands in: its own, or its Source's and group's.
+    public var stackID: String { group.map { TabStack.id(source: sourceName, group: $0) } ?? id }
 
     /// The name its Source goes by, for grouping and colour: as sent, or "Another app".
     public var sourceName: String { source?.isEmpty == false ? source! : "Another app" }
@@ -202,11 +217,24 @@ public struct TabBoard: Equatable, Codable, Sendable {
 
     public var isEmpty: Bool { tabs.isEmpty }
 
-    /// Puts it up, in place of any with the same id.
+    /// Puts it up, in place of any with the same id. Where you dragged the one it replaces, or its stack, it stays.
     public mutating func add(_ tab: EdgeTab) {
+        var tab = tab
+        if tab.placed == nil {
+            tab.placed = tabs.first { $0.id == tab.id }?.placed
+                ?? tabs.filter { $0.stackID == tab.stackID && $0.placed != nil }.max { $0.sent < $1.sent }?.placed
+        }
         tabs.removeAll { $0.id == tab.id }
         tabs.append(tab)
         tabs.sort(by: Self.order)
+    }
+
+    /// Puts a stack where you dragged it along the edge (0 the top, 1 the bottom), or with nil, back where its
+    /// sender asked.
+    public mutating func place(_ stackID: String, at place: Double?) {
+        for i in tabs.indices where tabs[i].stackID == stackID {
+            tabs[i].placed = place.map { min(max($0, 0), 1) }
+        }
     }
 
     /// Takes it down, returning it if it was up.
@@ -233,15 +261,15 @@ public struct TabBoard: Equatable, Codable, Sendable {
         }
     }
 
-    /// How the Tabs stand on the edge: in the places they asked for (`defaultSlot` if they didn't), top to bottom,
-    /// grouped ones stacked up, and past what fits, gathered under "+N".
+    /// How the Tabs stand on the edge: where you dragged them, else in the places they asked for (`defaultSlot` if
+    /// they didn't), top to bottom; grouped ones stacked up, and past what fits, gathered under "+N".
     public func columns(defaultSlot: TabSlot) -> [TabColumn] {
         // Stacks: one per Tab, or one per Source and group. `tabs` is already in order, so each stack's first is its
         // nearest deadline, and stacks come in the order of their first.
         var stacks: [TabStack] = []
         var index: [String: Int] = [:]
         for tab in tabs {
-            let id = tab.group.map { TabStack.id(source: tab.sourceName, group: $0) } ?? tab.id
+            let id = tab.stackID
             if let i = index[id] {
                 stacks[i].tabs.append(tab)
             } else {
@@ -249,13 +277,13 @@ public struct TabBoard: Equatable, Codable, Sendable {
                 stacks.append(TabStack(id: id, group: tab.group, tabs: [tab]))
             }
         }
-        let bySlot = Dictionary(grouping: stacks) { $0.slot(default: defaultSlot) }
-        let cap = bySlot.count > 1 ? Self.shownWhenShared : Self.shown
-        return TabSlot.allCases.compactMap { slot in
-            guard let stacks = bySlot[slot], !stacks.isEmpty else { return nil }
+        let byPlace = Dictionary(grouping: stacks) { $0.place(default: defaultSlot) }
+        let cap = byPlace.count > 1 ? Self.shownWhenShared : Self.shown
+        return byPlace.keys.sorted().map { place in
+            let stacks = byPlace[place]!
             // They fit; with more, the last place is the "+N" Tab.
-            guard stacks.count > cap else { return TabColumn(slot: slot, shown: stacks, more: []) }
-            return TabColumn(slot: slot, shown: Array(stacks.prefix(cap - 1)), more: Array(stacks.dropFirst(cap - 1)))
+            guard stacks.count > cap else { return TabColumn(place: place, shown: stacks, more: []) }
+            return TabColumn(place: place, shown: Array(stacks.prefix(cap - 1)), more: Array(stacks.dropFirst(cap - 1)))
         }
     }
 
@@ -303,23 +331,57 @@ public struct TabStack: Identifiable, Equatable, Sendable {
         return group.prefix(1).uppercased() + group.dropFirst()
     }
 
-    /// Where it stands: where its newest Tab asked to, or `default`.
-    public func slot(default slot: TabSlot) -> TabSlot {
-        tabs.max { $0.sent < $1.sent }?.position ?? slot
+    /// Where it stands along the edge, 0 the top and 1 the bottom: where you dragged it, else where its newest Tab
+    /// asked to, else `default`.
+    public func place(default slot: TabSlot) -> Double {
+        let newest = tabs.sorted { $0.sent > $1.sent }
+        return newest.lazy.compactMap(\.placed).first ?? (newest.first?.position ?? slot).place
     }
+
+    /// Whether you dragged it somewhere.
+    public var isPlaced: Bool { tabs.contains { $0.placed != nil } }
 
     public func isOverdue(at now: Date) -> Bool { tabs.contains { $0.isOverdue(at: now) } }
 }
 
 /// The stacks in one place on the edge, top to bottom.
 public struct TabColumn: Equatable, Sendable {
-    public var slot: TabSlot
+    /// Where along the edge it stands: 0 the top, 1 the bottom.
+    public var place: Double
     public var shown: [TabStack]
     /// Gathered under "+N".
     public var more: [TabStack]
 
     /// Each Tab in it, in order, for the keyboard to step through.
     public var tabs: [EdgeTab] { (shown + more).flatMap(\.tabs) }
+
+    /// The top, middle or bottom, if it's at one of them.
+    public var slot: TabSlot? { TabSlot.allCases.first { $0.place == place } }
+
+    /// A name for its place, for keeping its panel and the frames of its Tabs.
+    public var key: String { "\(place)" }
+
+    /// Where columns of these heights stand on an edge `length` long: each centred on its place (0 the top, 1 the
+    /// bottom) as far as the edge allows, and pushed apart, `spacing` between, rather than overlapping. Returns each
+    /// one's distance from the top, in the order given.
+    public static func arrange(_ columns: [(place: Double, height: Double)], length: Double,
+                               spacing: Double) -> [Double] {
+        func clamp(_ top: Double, _ height: Double) -> Double { max(0, min(top, length - height)) }
+        var tops = columns.map { clamp(length * min(max($0.place, 0), 1) - $0.height / 2, $0.height) }
+        let order = tops.indices.sorted { tops[$0] < tops[$1] }
+        // Each pushed below the one above it; then, if the last ran off the bottom, each pulled back up.
+        for (a, b) in zip(order, order.dropFirst()) where tops[b] < tops[a] + columns[a].height + spacing {
+            tops[b] = tops[a] + columns[a].height + spacing
+        }
+        if let last = order.last, tops[last] + columns[last].height > length {
+            tops[last] = length - columns[last].height
+            for (b, a) in zip(order.reversed(), order.reversed().dropFirst())
+            where tops[a] + columns[a].height + spacing > tops[b] {
+                tops[a] = tops[b] - spacing - columns[a].height
+            }
+        }
+        return tops
+    }
 }
 
 extension EdgeTab {

@@ -85,7 +85,7 @@ final class DebugDriver {
             case let name? where TabEdge(rawValue: name) != nil: AppModel.shared.tabEdge = TabEdge(rawValue: name)!
             case let name? where TabLook(rawValue: name) != nil: AppModel.shared.tabLook = TabLook(rawValue: name)!
             case let name? where TabPile(rawValue: name) != nil: AppModel.shared.tabPile = TabPile(rawValue: name)!
-            case "more"?: ui.expanded = TabsUI.more(AppModel.shared.tabPosition)
+            case "more"?: ui.expanded = TabsUI.more(AppModel.shared.tabPosition.place)
             case let id?: ui.expanded = id
             case nil: ui.expanded = nil
             }
@@ -235,12 +235,13 @@ final class DebugDriver {
 
     /// Visible windows, front to back; their index here is what `snapshot` takes.
     /// Where each Tab is drawn, by place: "top: a 0,0 30x30".
-    private static func describe(_ frames: [TabSlot: [String: CGRect]]) -> String {
-        frames.sorted { $0.key.rawValue < $1.key.rawValue }.map { slot, rows in
+    private static func describe(_ frames: [String: [String: CGRect]]) -> String {
+        frames.sorted { $0.key < $1.key }.map { place, rows in
             let list = rows.sorted { $0.value.minY < $1.value.minY }.map { id, f in
                 "\(id) \(Int(f.minX)),\(Int(f.minY)) \(Int(f.width))x\(Int(f.height))"
             }
-            return "\(slot.rawValue): " + list.joined(separator: ", ")
+            let name = Double(place).flatMap { p in TabSlot.allCases.first { $0.place == p }?.rawValue } ?? place
+            return "\(name): " + list.joined(separator: ", ")
         }.joined(separator: "; ")
     }
 

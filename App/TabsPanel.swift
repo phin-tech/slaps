@@ -14,21 +14,29 @@ final class TabsUI {
     var focused = false
     /// The Tab the keyboard is on.
     var selection: String?
+    /// The stack being dragged along the edge: drawn faint where it was, while a copy follows the mouse.
+    var dragging: String?
 
-    static func more(_ slot: TabSlot) -> String { "+more:\(slot.rawValue)" }
+    /// The "+N" of the column at `place`.
+    static func more(_ place: Double) -> String { "+more:\(place)" }
 
-    /// Where each stack is drawn, in its panel's content (top-left origin), by place and id: which one the mouse is
-    /// on decides which is out.
-    @ObservationIgnored var rowFrames: [TabSlot: [String: CGRect]] = [:]
+    /// Where each stack is drawn, in its panel's content (top-left origin), by place (`TabColumn.key`) and id: which
+    /// one the mouse is on decides which is out.
+    @ObservationIgnored var rowFrames: [String: [String: CGRect]] = [:]
 }
 
-/// The Tabs: a borderless panel for each place on the right (or left) edge of the main screen that has any (top,
-/// middle, bottom), over ordinary windows and full-screen apps, which never takes the keyboard unless you ask with
-/// the tabs shortcut. Each is sized to its Tabs, so the rest of the edge stays yours.
+/// The Tabs: a borderless panel for each place on the right (or left) edge of the main screen that has any (the top,
+/// middle or bottom, or wherever you dragged them), over ordinary windows and full-screen apps, which never takes the
+/// keyboard unless you ask with the tabs shortcut. Each is sized to its Tabs, so the rest of the edge stays yours.
 @MainActor
 final class TabsController {
     let ui = TabsUI()
-    private var panels: [TabSlot: TabsWindow] = [:]
+    private var panels: [String: TabsWindow] = [:]
+    /// The copy of a dragged stack that follows the mouse, and where it would land if let go now.
+    private var ghost: TabsWindow?
+    private var dropPlace: Double?
+    /// When a drag last ended: the click that ends it isn't a click on the Tab.
+    private var droppedAt = Date.distantPast
     private var clickAway: Any?
     /// Follow the mouse wherever it goes: over another app (global) or over Slaps' own windows (local).
     private var mouseMonitors: [Any] = []
@@ -73,6 +81,7 @@ final class TabsController {
             _ = ui.expanded
             _ = ui.focused
             _ = ui.selection
+            _ = ui.dragging
         } onChange: { [weak self] in
             // After the change lands, and once however many come together.
             Task { @MainActor in
@@ -82,8 +91,9 @@ final class TabsController {
             }
         }
         let columns = self.columns
-        let ids = Set(columns.flatMap { c in (c.shown + c.more).map(\.id) + [TabsUI.more(c.slot)] })
-        for slot in TabSlot.allCases { ui.rowFrames[slot] = ui.rowFrames[slot]?.filter { ids.contains($0.key) } }
+        let ids = Set(columns.flatMap { c in (c.shown + c.more).map(\.id) + [TabsUI.more(c.place)] })
+        let keys = Set(columns.map(\.key))
+        ui.rowFrames = ui.rowFrames.filter { keys.contains($0.key) }.mapValues { $0.filter { ids.contains($0.key) } }
         if let expanded = ui.expanded, !ids.contains(expanded) {
             ui.expanded = nil
             ui.pinned = nil
@@ -95,25 +105,27 @@ final class TabsController {
         }
         let visible = screen.visibleFrame.insetBy(dx: 0, dy: 12)
         let metrics = TabMetrics(model.tabSize, pile: model.tabPile)
-        for slot in TabSlot.allCases {
-            guard let column = columns.first(where: { $0.slot == slot }) else {
-                panels[slot]?.orderOut(nil)
-                continue
-            }
-            let panel = panels[slot] ?? makePanel(slot)
-            // At the top or in the middle, the top stays where the collapsed column's would be, so a Tab sliding out
-            // grows downwards and the one under the mouse doesn't move away from it; at the bottom, it grows upwards.
-            let collapsedHeight = column.shown.reduce(0) { $0 + metrics.rowHeight(model.tabLook, stacked: $1.isGroup) }
+        // Each column's height collapsed, and where that puts it: centred on its place, pushed clear of the others.
+        let heights = columns.map { column in
+            column.shown.reduce(0) { $0 + metrics.rowHeight(model.tabLook, stacked: $1.isGroup) }
                 + (column.more.isEmpty ? 0 : metrics.rowHeight(model.tabLook))
                 + CGFloat(max(0, column.shown.count + (column.more.isEmpty ? 0 : 1) - 1)) * metrics.spacing
+        }
+        let tops = TabColumn.arrange(zip(columns, heights).map { ($0.place, Double($1)) },
+                                     length: visible.height, spacing: metrics.spacing * 2)
+        for (key, panel) in panels where !keys.contains(key) {
+            panel.orderOut(nil)
+            panels[key] = nil
+        }
+        for (i, column) in columns.enumerated() {
+            let panel = panels[column.key] ?? makePanel(column.key)
             panel.edge = model.tabEdge
             panel.edgeX = model.tabEdge == .right ? screen.visibleFrame.maxX : screen.visibleFrame.minX
             panel.bounds = (visible.minY, visible.maxY)
-            switch slot {
-            case .top: panel.anchor = .top(visible.maxY)
-            case .middle: panel.anchor = .top(min(visible.maxY, visible.midY + collapsedHeight / 2))
-            case .bottom: panel.anchor = .bottom(visible.minY)
-            }
+            // In the top two thirds, the top stays where the collapsed column's is, so a Tab sliding out grows
+            // downwards and the one under the mouse doesn't move away from it; lower down, it grows upwards.
+            let top = visible.maxY - CGFloat(tops[i])
+            panel.anchor = column.place > 2.0 / 3 ? .bottom(top - heights[i]) : .top(top)
             panel.allowsKey = ui.focused
             // Out of screenshots, recordings and screen sharing, unless you'd rather they showed.
             panel.sharingType = model.tabsInScreenshots ? .readOnly : .none
@@ -124,7 +136,15 @@ final class TabsController {
         }
     }
 
-    private func makePanel(_ slot: TabSlot) -> TabsWindow {
+    private func makePanel(_ key: String) -> TabsWindow {
+        let panel = Self.makeWindow()
+        panel.title = "Slaps tabs (\(key))"
+        panel.contentView = NSHostingView(rootView: TabsView(model: .shared, ui: ui, controller: self, key: key))
+        panels[key] = panel
+        return panel
+    }
+
+    private static func makeWindow() -> TabsWindow {
         let panel = TabsWindow(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered,
                                defer: false)
         // Over ordinary windows and full-screen apps, under an alert.
@@ -136,10 +156,7 @@ final class TabsController {
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.becomesKeyOnlyIfNeeded = true
-        panel.title = "Slaps tabs (\(slot.rawValue))"
         panel.sharingType = AppModel.shared.tabsInScreenshots ? .readOnly : .none
-        panel.contentView = NSHostingView(rootView: TabsView(model: .shared, ui: ui, controller: self, slot: slot))
-        panels[slot] = panel
         return panel
     }
 
@@ -150,25 +167,26 @@ final class TabsController {
     /// and an app that isn't active isn't always told a hover ended. A card that's out stays out while the mouse is on
     /// it, even where it covers the Tab below.
     func trackMouse() {
-        guard !ui.focused, ui.pinned == nil else { return }
+        guard !ui.focused, ui.pinned == nil, ui.dragging == nil else { return }
         let mouse = NSEvent.mouseLocation
         var under: String?
-        for (slot, panel) in panels where panel.isVisible {
+        for (key, panel) in panels where panel.isVisible {
             let p = panel.convertPoint(fromScreen: mouse)
             let point = CGPoint(x: p.x, y: panel.frame.height - p.y)
-            let frames = ui.rowFrames[slot] ?? [:]
+            let frames = ui.rowFrames[key] ?? [:]
             if let out = ui.expanded, let frame = frames[out], frame.insetBy(dx: -3, dy: -3).contains(point) { return }
             if under == nil { under = frames.first { $0.value.contains(point) }?.key }
         }
         guard ui.expanded != under else { return }
         // The card's outline is stale until SwiftUI lays the Tab out again; forget it, so the next move can't
         // slide it straight back out.
-        if let out = ui.expanded { for slot in TabSlot.allCases { ui.rowFrames[slot]?[out] = nil } }
+        if let out = ui.expanded { for key in ui.rowFrames.keys { ui.rowFrames[key]?[out] = nil } }
         ui.expanded = under
     }
 
     /// A click keeps a stack out until you click somewhere else.
     func pin(_ id: String) {
+        guard ui.dragging == nil, Date().timeIntervalSince(droppedAt) > 0.3 else { return }
         ui.pinned = id
         ui.expanded = id
         if clickAway == nil {
@@ -188,8 +206,8 @@ final class TabsController {
     // MARK: The keyboard
 
     /// Every Tab, in the order the keyboard steps through them: top to bottom of the edge.
-    private var keyboardOrder: [(slot: TabSlot, tab: EdgeTab)] {
-        columns.flatMap { c in c.tabs.map { (c.slot, $0) } }
+    private var keyboardOrder: [(key: String, tab: EdgeTab)] {
+        columns.flatMap { c in c.tabs.map { (c.key, $0) } }
     }
 
     /// The tabs shortcut: every Tab out, the first chosen, and the keyboard theirs until Escape. Again, to put them
@@ -207,8 +225,8 @@ final class TabsController {
 
     /// The panel with the chosen Tab takes the keyboard.
     private func keyToSelection() {
-        guard let slot = keyboardOrder.first(where: { $0.tab.id == ui.selection })?.slot else { return }
-        panels[slot]?.makeKeyAndOrderFront(nil)
+        guard let key = keyboardOrder.first(where: { $0.tab.id == ui.selection })?.key else { return }
+        panels[key]?.makeKeyAndOrderFront(nil)
     }
 
     func endFocus() {
@@ -232,6 +250,51 @@ final class TabsController {
     }
 
     var selected: EdgeTab? { AppModel.shared.tabBoard.tabs.first { $0.id == ui.selection } }
+
+    // MARK: Dragging
+
+    /// A stack dragged along the edge: a copy of its Tab follows the mouse up and down the edge, and where it would
+    /// land is noted, on other Tabs to join them, or anywhere else to stand on its own.
+    func drag(_ stack: TabStack) {
+        let model = AppModel.shared
+        guard !ui.focused, let screen = NSScreen.screens.first else { return }
+        let ghost = self.ghost ?? Self.makeWindow()
+        self.ghost = ghost
+        if ui.dragging != stack.id {
+            unpin()
+            ui.expanded = nil
+            ui.dragging = stack.id
+            ghost.title = "Slaps tab being moved"
+            let metrics = TabMetrics(model.tabSize, pile: model.tabPile)
+            ghost.contentView = NSHostingView(rootView: CollapsedTab(
+                stack: stack, look: model.tabLook, edge: model.tabEdge, metrics: metrics, now: model.now).fixedSize())
+        }
+        let size = ghost.contentView?.fittingSize ?? .zero
+        let visible = screen.visibleFrame.insetBy(dx: 0, dy: 12)
+        let mouse = NSEvent.mouseLocation
+        let y = min(max(mouse.y - size.height / 2, visible.minY), visible.maxY - size.height)
+        let x = model.tabEdge == .right ? screen.visibleFrame.maxX - size.width : screen.visibleFrame.minX
+        let frame = CGRect(x: x, y: y, width: size.width, height: size.height)
+        ghost.edgeX = nil
+        ghost.anchor = nil
+        ghost.alphaValue = 0.9
+        ghost.setFrame(frame, display: true)
+        ghost.orderFrontRegardless()
+        let onto = columns.first { column in
+            panels[column.key].map { $0.isVisible && $0.frame.intersects(frame) } ?? false
+        }
+        dropPlace = onto?.place ?? Double((visible.maxY - mouse.y) / visible.height)
+    }
+
+    /// Let go: the stack stays where it was dropped.
+    func drop() {
+        guard let id = ui.dragging else { return }
+        ghost?.orderOut(nil)
+        if let place = dropPlace { AppModel.shared.placeTabs(id, at: place) }
+        dropPlace = nil
+        droppedAt = Date()
+        ui.dragging = nil
+    }
 }
 
 /// Becomes key only when the tabs shortcut asks: otherwise clicking a Tab's buttons leaves the keyboard where it was.
@@ -269,15 +332,15 @@ struct TabsView: View {
     let model: AppModel
     let ui: TabsUI
     let controller: TabsController
-    /// The place on the edge this panel holds.
-    let slot: TabSlot
+    /// The place on the edge this panel holds (`TabColumn.key`).
+    let key: String
     @FocusState private var keyboard: Bool
 
     private var edge: TabEdge { model.tabEdge }
     private var metrics: TabMetrics { TabMetrics(model.tabSize, pile: model.tabPile) }
 
     var body: some View {
-        let column = controller.columns.first { $0.slot == slot }
+        let column = controller.columns.first { $0.key == key }
         VStack(alignment: edge == .right ? .trailing : .leading, spacing: metrics.spacing) {
             if let column {
                 if ui.focused {
@@ -288,7 +351,7 @@ struct TabsView: View {
                     }
                 } else {
                     ForEach(column.shown) { stack in row(stack) }
-                    if !column.more.isEmpty { moreRow(column.more) }
+                    if !column.more.isEmpty { moreRow(column.more, place: column.place) }
                 }
             }
         }
@@ -328,12 +391,17 @@ struct TabsView: View {
                 CollapsedTab(stack: stack, look: model.tabLook, edge: edge, metrics: metrics, now: model.now)
             }
         }
-        .background(RowFrame(ui: ui, slot: slot, id: stack.id))
+        .opacity(ui.dragging == stack.id ? 0.35 : 1)
+        .background(RowFrame(ui: ui, key: key, id: stack.id))
         .onTapGesture { controller.pin(stack.id) }
+        // Dragged up or down, it moves along the edge.
+        .gesture(DragGesture(minimumDistance: 4)
+            .onChanged { _ in controller.drag(stack) }
+            .onEnded { _ in controller.drop() })
     }
 
-    @ViewBuilder private func moreRow(_ more: [TabStack]) -> some View {
-        let id = TabsUI.more(slot)
+    @ViewBuilder private func moreRow(_ more: [TabStack], place: Double) -> some View {
+        let id = TabsUI.more(place)
         let tabs = more.flatMap(\.tabs)
         Group {
             if ui.expanded == id {
@@ -347,7 +415,7 @@ struct TabsView: View {
                     .background(Color(white: 0.25).opacity(0.92), in: EdgeShape(edge: edge, radius: 8))
             }
         }
-        .background(RowFrame(ui: ui, slot: slot, id: id))
+        .background(RowFrame(ui: ui, key: key, id: id))
         .onTapGesture { controller.pin(id) }
     }
 }
@@ -388,14 +456,14 @@ struct TabMetrics {
 /// Notes where a Tab, or its card, is drawn.
 private struct RowFrame: View {
     let ui: TabsUI
-    let slot: TabSlot
+    let key: String
     let id: String
 
     var body: some View {
         GeometryReader { g in
             Color.clear
-                .onAppear { ui.rowFrames[slot, default: [:]][id] = g.frame(in: .global) }
-                .onChange(of: g.frame(in: .global)) { _, frame in ui.rowFrames[slot, default: [:]][id] = frame }
+                .onAppear { ui.rowFrames[key, default: [:]][id] = g.frame(in: .global) }
+                .onChange(of: g.frame(in: .global)) { _, frame in ui.rowFrames[key, default: [:]][id] = frame }
         }
     }
 }
@@ -775,6 +843,10 @@ struct TabCard: View {
             }
             Spacer(minLength: 0)
             Menu {
+                if tab.placed != nil {
+                    Button("Put Back Where It Was Sent") { model.placeTabs(tab.stackID, at: nil) }
+                    Divider()
+                }
                 Button("Dismiss All from \(tab.sourceName)") { model.dismissTabs(from: tab.sourceName) }
                 Button("Dismiss All Tabs") { model.dismissAllTabs() }
             } label: {
